@@ -75,10 +75,10 @@ export default function ThermalReceiptPreview({ sale, settings, onClose, onPrint
           <div className="paper-receipt-container">
             {lines.map((line, idx) => {
               const trimmed = (line || '').trim();
-              const isHeaderBig = trimmed === 'WEKND.';
+              const isHeaderBig = trimmed === 'Weknd.' || trimmed === 'WEKND.';
               const isHeaderSub = trimmed === 'Juice & Rolls' || trimmed === 'JUICE & ROLLS';
               const isTotal = trimmed.startsWith('TOTAL');
-              const isFooter = trimmed === 'THANK YOU!' || trimmed === 'VISIT WEKND. AGAIN';
+              const isFooter = trimmed === 'THANK YOU!' || trimmed === '@weknd.official' || trimmed === 'VISIT WEKND. AGAIN';
 
               let lineClass = 'receipt-text-line';
               if (isHeaderBig) lineClass += ' receipt-line-header-big';
@@ -86,9 +86,11 @@ export default function ThermalReceiptPreview({ sale, settings, onClose, onPrint
               else if (isTotal) lineClass += ' receipt-line-total';
               else if (isFooter) lineClass += ' receipt-line-footer';
 
+              const displayLine = (line || ' ').replace(/Rs\./g, '₹');
+
               return (
                 <div key={idx} className={lineClass}>
-                  {line || ' '}
+                  {displayLine}
                 </div>
               );
             })}

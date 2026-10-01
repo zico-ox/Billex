@@ -9,11 +9,11 @@ export const SEED_CATEGORIES = [
   'All Items',
   'Must Try',
   'Rumali Rolls',
-  'Mojitos',
   'Fresh Lime',
   'Shakes',
   'Fresh Juices',
-  'Special Avilmilk'
+  'Special Avilmilk',
+  'Mojitos'
 ];
 
 export const SEED_PRODUCTS = [
@@ -52,43 +52,14 @@ export const SEED_PRODUCTS = [
   { id: 'p_grape_lime', name: 'Grape Lime', category: 'Fresh Lime', sellingPrice: 30, purchasePrice: 12, stock: 60, status: 'Active' },
 
   // ==========================================
-  // 4. MOJITOS (5 items - Image 3 Right)
-  // ==========================================
-  { id: 'p_passion_fruit_mojito', name: 'Passion Fruit Mojito', category: 'Mojitos', sellingPrice: 89, purchasePrice: 40, stock: 50, status: 'Active' },
-  { id: 'p_green_apple_mojito', name: 'Green Apple Mojito', category: 'Mojitos', sellingPrice: 89, purchasePrice: 40, stock: 50, status: 'Active' },
-  { id: 'p_watermelon_mojito', name: 'Watermelon Mojito', category: 'Mojitos', sellingPrice: 89, purchasePrice: 40, stock: 50, status: 'Active' },
-  { id: 'p_blue_curacao_mojito', name: 'Blue Curacao Mojito', category: 'Mojitos', sellingPrice: 89, purchasePrice: 40, stock: 50, status: 'Active' },
-  { id: 'p_mint_mojito', name: 'Mint Mojito', category: 'Mojitos', sellingPrice: 89, purchasePrice: 40, stock: 50, status: 'Active' },
-
-  // ==========================================
-  // 5. SHAKES (12 items - Image 4 Left)
-  // ==========================================
-  { id: 'p_apple_shake', name: 'Apple Shake', category: 'Shakes', sellingPrice: 69, purchasePrice: 32, stock: 50, status: 'Active' },
-  { id: 'p_chikku_shake', name: 'Chikku Shake', category: 'Shakes', sellingPrice: 69, purchasePrice: 30, stock: 50, status: 'Active' },
-  { id: 'p_sharja_shake', name: 'Sharja Shake', category: 'Shakes', sellingPrice: 69, purchasePrice: 30, stock: 50, status: 'Active' },
-  { id: 'p_tender_coconut_shake', name: 'Tender Coconut Shake', category: 'Shakes', sellingPrice: 69, purchasePrice: 32, stock: 50, status: 'Active' },
-  { id: 'p_avocado_shake', name: 'Avocado Shake', category: 'Shakes', sellingPrice: 79, purchasePrice: 40, stock: 50, status: 'Active' },
-  { id: 'p_anar_shake', name: 'Anar Shake', category: 'Shakes', sellingPrice: 79, purchasePrice: 38, stock: 50, status: 'Active' },
-  { id: 'p_mango_shake', name: 'Mango Shake', category: 'Shakes', sellingPrice: 79, purchasePrice: 38, stock: 50, status: 'Active' },
-  { id: 'p_almond_shake', name: 'Almond Shake', category: 'Shakes', sellingPrice: 79, purchasePrice: 40, stock: 50, status: 'Active' },
-  { id: 'p_saudi_shake', name: 'Saudi Shake', category: 'Shakes', sellingPrice: 79, purchasePrice: 38, stock: 50, status: 'Active' },
-  { id: 'p_strawberry_shake', name: 'Strawberry Shake', category: 'Shakes', sellingPrice: 89, purchasePrice: 45, stock: 50, status: 'Active' },
-  { id: 'p_dryfruit_mix_shake', name: 'Dryfruit Mix Shake', category: 'Shakes', sellingPrice: 99, purchasePrice: 50, stock: 50, status: 'Active' },
-  { id: 'p_blueberry_shake', name: 'Blueberry Shake', category: 'Shakes', sellingPrice: 99, purchasePrice: 50, stock: 50, status: 'Active' },
-
-  // ==========================================
-  // 6. FRESH JUICES (5 items - Image 4 Right Top)
-  // ==========================================
-  { id: 'p_watermelon_juice', name: 'Watermelon Juice', category: 'Fresh Juices', sellingPrice: 59, purchasePrice: 25, stock: 50, status: 'Active' },
-  { id: 'p_grape_juice', name: 'Grape Juice', category: 'Fresh Juices', sellingPrice: 59, purchasePrice: 25, stock: 50, status: 'Active' },
-  { id: 'p_orange_juice', name: 'Orange Juice', category: 'Fresh Juices', sellingPrice: 69, purchasePrice: 32, stock: 50, status: 'Active' },
-  { id: 'p_mosambi_juice', name: 'Mosambi Juice', category: 'Fresh Juices', sellingPrice: 69, purchasePrice: 32, stock: 50, status: 'Active' },
-  { id: 'p_pineapple_juice', name: 'Pineapple Juice', category: 'Fresh Juices', sellingPrice: 69, purchasePrice: 30, stock: 50, status: 'Active' },
-
-  // ==========================================
   // 7. WEKND. SPECIAL AVILMILK (1 item - Image 4 Right Bottom)
   // ==========================================
   { id: 'p_special_avilmilk', name: 'Special Avilmilk', category: 'Special Avilmilk', sellingPrice: 49, purchasePrice: 22, stock: 50, status: 'Active' },
+
+  // ==========================================
+  // 8. MOJITOS (1 item - All flavors same price ₹89)
+  // ==========================================
+  { id: 'p_mojito', name: 'Mojito', category: 'Mojitos', sellingPrice: 89, purchasePrice: 40, stock: 50, status: 'Active' },
 ];
 
 const SEED_CUSTOMERS = [
@@ -103,13 +74,14 @@ const DEFAULT_SETTINGS = {
   subTitle: 'Juice & Rolls',
   address: 'Shop 4, Main Street',
   phone: '98765-43210',
-  receiptFooter: 'THANK YOU\nVISIT AGAIN',
+  receiptFooter: 'THANK YOU!\n@weknd.official',
   printerType: 'web-bluetooth',
   printerName: 'EXEO EX58P',
   feedLines: 4,
+  showPaymentModal: true,
 };
 
-const STORAGE_KEY_PRODUCTS = 'weknd_products_v5';
+const STORAGE_KEY_PRODUCTS = 'weknd_products_v6';
 const STORAGE_KEY_CATEGORIES = 'weknd_categories_v5';
 
 class StorageService {
@@ -118,26 +90,79 @@ class StorageService {
   }
 
   init() {
-    // Initialize products from official menu if not present
-    if (!localStorage.getItem(STORAGE_KEY_PRODUCTS)) {
-      localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(SEED_PRODUCTS));
-    }
-    if (!localStorage.getItem(STORAGE_KEY_CATEGORIES)) {
-      localStorage.setItem(STORAGE_KEY_CATEGORIES, JSON.stringify(SEED_CATEGORIES));
-    }
+    // Ensure Mojito product is in products
+    let storedProductsRaw = localStorage.getItem(STORAGE_KEY_PRODUCTS);
+    let prods = storedProductsRaw ? JSON.parse(storedProductsRaw) : [...SEED_PRODUCTS];
+    const oldMojitoIds = [
+      'p_passion_fruit_mojito',
+      'p_green_apple_mojito',
+      'p_watermelon_mojito',
+      'p_blue_curacao_mojito',
+      'p_mint_mojito'
+    ];
+    prods = prods.filter(p => !oldMojitoIds.includes(p.id));
+
+    const mojitoItem = {
+      id: 'p_mojito',
+      name: 'Mojito',
+      category: 'Mojitos',
+      sellingPrice: 89,
+      purchasePrice: 40,
+      stock: 50,
+      status: 'Active'
+    };
+
+    // Ensure Mojito is placed at the end of products
+    prods = prods.filter(p => p.id !== 'p_mojito' && p.name?.toLowerCase() !== 'mojito');
+    prods.push(mojitoItem);
+    localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(prods));
+
+    // Ensure Mojitos category exists at the very end
+    let catsRaw = localStorage.getItem(STORAGE_KEY_CATEGORIES);
+    let cats = catsRaw ? JSON.parse(catsRaw) : [...SEED_CATEGORIES];
+    cats = cats.filter(c => c !== 'Mojitos');
+    cats.push('Mojitos');
+    localStorage.setItem(STORAGE_KEY_CATEGORIES, JSON.stringify(cats));
     if (!localStorage.getItem('weknd_settings')) {
       localStorage.setItem('weknd_settings', JSON.stringify(DEFAULT_SETTINGS));
     }
     if (!localStorage.getItem('weknd_customers')) {
       localStorage.setItem('weknd_customers', JSON.stringify(SEED_CUSTOMERS));
     }
-    if (!localStorage.getItem('weknd_bill_counter')) {
-      localStorage.setItem('weknd_bill_counter', '125');
+    const storedSettings = localStorage.getItem('weknd_settings');
+    if (storedSettings) {
+      try {
+        const s = JSON.parse(storedSettings);
+        if (s.receiptFooter && (s.receiptFooter.includes('VISIT') || !s.receiptFooter.includes('@weknd.official'))) {
+          s.receiptFooter = 'THANK YOU!\n@weknd.official';
+          localStorage.setItem('weknd_settings', JSON.stringify(s));
+        }
+      } catch (_) {}
     }
-    if (!localStorage.getItem('weknd_sales')) {
+
+    const storedSalesRaw = localStorage.getItem('weknd_sales');
+    if (storedSalesRaw) {
+      try {
+        const sales = JSON.parse(storedSalesRaw);
+        let changed = false;
+        sales.forEach(s => {
+          if (s.billNo && (s.billNo.startsWith('INV-') || s.billNo.includes('000125'))) {
+            const num = parseInt(s.billNo.replace(/\D/g, ''), 10);
+            if (num === 125) s.billNo = 'WK0144';
+            else if (num === 124) s.billNo = 'WK0143';
+            else if (num === 123) s.billNo = 'WK0142';
+            else s.billNo = `WK${String(num).padStart(4, '0')}`;
+            changed = true;
+          }
+        });
+        if (changed) {
+          localStorage.setItem('weknd_sales', JSON.stringify(sales));
+        }
+      } catch (_) {}
+    } else {
       const sampleSale = {
-        id: 's125',
-        billNo: 'INV-000125',
+        id: 's144',
+        billNo: 'WK0144',
         date: '23 Sep 2026',
         time: '10:24 AM',
         timestamp: Date.now() - 3600000,
@@ -158,8 +183,8 @@ class StorageService {
         change: 33
       };
       const sampleSale2 = {
-        id: 's124',
-        billNo: 'INV-000124',
+        id: 's143',
+        billNo: 'WK0143',
         date: '23 Sep 2026',
         time: '09:52 AM',
         timestamp: Date.now() - 7200000,
@@ -179,8 +204,8 @@ class StorageService {
         change: 0
       };
       const sampleSale3 = {
-        id: 's123',
-        billNo: 'INV-000123',
+        id: 's142',
+        billNo: 'WK0142',
         date: '23 Sep 2026',
         time: '09:15 AM',
         timestamp: Date.now() - 9000000,
@@ -188,7 +213,7 @@ class StorageService {
         customerPhone: '',
         items: [
           { productId: 'p_roasted_cashew', name: 'Roasted Cashew', qty: 1, sellingPrice: 99, amount: 99 },
-          { productId: 'p_mint_mojito', name: 'Mint Mojito', qty: 1, sellingPrice: 89, amount: 89 }
+          { productId: 'p_mojito', name: 'Mojito', qty: 1, sellingPrice: 89, amount: 89 }
         ],
         subtotal: 188,
         discount: 0,
@@ -201,11 +226,64 @@ class StorageService {
       };
       localStorage.setItem('weknd_sales', JSON.stringify([sampleSale, sampleSale2, sampleSale3]));
     }
+    if (!localStorage.getItem('weknd_expenses_v1')) {
+      const sampleExpenses = [
+        { id: 'exp_1', title: 'Shop Utilities & Paper', category: 'Utilities', amount: 1200, date: '23 Sep 2026', time: '11:00 AM' }
+      ];
+      localStorage.setItem('weknd_expenses_v1', JSON.stringify(sampleExpenses));
+    }
+  }
+
+  async getExpenses() {
+    const raw = localStorage.getItem('weknd_expenses_v1');
+    return raw ? JSON.parse(raw) : [
+      { id: 'exp_1', title: 'Shop Utilities & Paper', category: 'Utilities', amount: 1200, date: '23 Sep 2026', time: '11:00 AM' }
+    ];
+  }
+
+  async saveExpense(expense) {
+    const list = await this.getExpenses();
+    const now = new Date();
+    const dateStr = expense.date || now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    const timeStr = expense.time || now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+    const clean = {
+      ...expense,
+      id: expense.id || `exp_${Date.now()}`,
+      title: (expense.title || 'General Expense').trim(),
+      category: (expense.category || 'Utilities').trim(),
+      amount: Number(expense.amount) || 0,
+      date: dateStr,
+      time: timeStr,
+      createdAt: now.toISOString(),
+    };
+    list.unshift(clean);
+    localStorage.setItem('weknd_expenses_v1', JSON.stringify(list));
+    return clean;
+  }
+
+  async deleteExpense(id) {
+    const list = await this.getExpenses();
+    const filtered = list.filter(e => e.id !== id);
+    localStorage.setItem('weknd_expenses_v1', JSON.stringify(filtered));
+    return filtered;
   }
 
   async getProducts() {
     const raw = localStorage.getItem(STORAGE_KEY_PRODUCTS);
-    return raw ? JSON.parse(raw) : SEED_PRODUCTS;
+    let list = raw ? JSON.parse(raw) : SEED_PRODUCTS;
+    const mojitoItem = {
+      id: 'p_mojito',
+      name: 'Mojito',
+      category: 'Mojitos',
+      sellingPrice: 89,
+      purchasePrice: 40,
+      stock: 50,
+      status: 'Active'
+    };
+    list = list.filter(p => p.id !== 'p_mojito' && p.name?.toLowerCase() !== 'mojito');
+    list.push(mojitoItem);
+    localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(list));
+    return list;
   }
 
   async saveProduct(prod) {
@@ -241,7 +319,11 @@ class StorageService {
 
   async getCategories() {
     const raw = localStorage.getItem(STORAGE_KEY_CATEGORIES);
-    return raw ? JSON.parse(raw) : SEED_CATEGORIES;
+    let cats = raw ? JSON.parse(raw) : SEED_CATEGORIES;
+    cats = cats.filter(c => c !== 'Mojitos');
+    cats.push('Mojitos');
+    localStorage.setItem(STORAGE_KEY_CATEGORIES, JSON.stringify(cats));
+    return cats;
   }
 
   async resetToOfficialMenu() {
@@ -269,11 +351,26 @@ class StorageService {
     return clean;
   }
 
+  async getLastBillNumber() {
+    const sales = await this.getSales();
+    if (!sales || sales.length === 0) {
+      return 0;
+    }
+    let maxNum = 0;
+    sales.forEach(s => {
+      const match = String(s.billNo || '').match(/(\d+)/);
+      if (match) {
+        const val = parseInt(match[1], 10);
+        if (val > maxNum) maxNum = val;
+      }
+    });
+    return maxNum;
+  }
+
   async getNextBillNumber() {
-    const counter = Number(localStorage.getItem('weknd_bill_counter') || '125');
-    const padded = String(counter).padStart(6, '0');
-    localStorage.setItem('weknd_bill_counter', String(counter + 1));
-    return `INV-${padded}`;
+    const lastNum = await this.getLastBillNumber();
+    const nextNum = lastNum + 1;
+    return `WK${String(nextNum).padStart(4, '0')}`;
   }
 
   async completeSale(saleData) {
@@ -408,6 +505,9 @@ class StorageService {
       totalProfit += Number(s.profit || (tot * 0.45));
     });
 
+    const expenses = await this.getExpenses();
+    const expensesTotal = expenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+
     return {
       todaySales: totalSales,
       billsCount: billsCount,
@@ -415,7 +515,7 @@ class StorageService {
       upiTotal: upi,
       cardTotal: card,
       creditTotal: credit,
-      expensesTotal: 1200,
+      expensesTotal,
       profitTotal: totalProfit,
       recentBills: sales.slice(0, 10),
     };

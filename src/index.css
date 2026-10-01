@@ -254,6 +254,95 @@ input, select, textarea {
   box-shadow: 0 0 6px rgba(234, 179, 8, 0.6);
 }
 
+/* PWA Install Button in Top Bar */
+.pwa-topbar-install-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.42rem 0.85rem;
+  border-radius: var(--radius-full);
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+  border: 1.5px solid #fde68a;
+  color: #92400e;
+  font-size: 0.82rem;
+  font-weight: 700;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(180, 83, 9, 0.08);
+}
+
+.pwa-topbar-install-btn:hover {
+  background: #fde68a;
+  border-color: #f59e0b;
+  color: #78350f;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(180, 83, 9, 0.16);
+}
+
+.pwa-topbar-install-btn:active {
+  transform: translateY(0);
+}
+
+.pwa-sidebar-btn {
+  margin-top: 0.5rem;
+  background: #fdfaf6 !important;
+  border: 1px dashed var(--border-medium) !important;
+  color: var(--brown-primary) !important;
+}
+
+.pwa-sidebar-btn:hover {
+  background: var(--brown-subtle) !important;
+  border-color: var(--brown-primary) !important;
+}
+
+/* iOS/Modern Style Switch Toggle */
+.toggle-switch-container {
+  position: relative;
+  display: inline-block;
+  width: 52px;
+  height: 28px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.toggle-switch-container input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+.toggle-switch-slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background-color: #cbd5e1;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  border-radius: 999px;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.toggle-switch-slider::before {
+  position: absolute;
+  content: "";
+  height: 22px;
+  width: 22px;
+  left: 3px;
+  bottom: 3px;
+  background-color: #ffffff;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  border-radius: 50%;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.toggle-switch-slider.checked {
+  background-color: var(--brown-primary);
+}
+
+.toggle-switch-slider.checked::before {
+  transform: translateX(24px);
+}
+
 /* ==========================================================================
    2. OFFCANVAS SIDEBAR (Always hidden by default, opens with Menu button)
    ========================================================================== */
@@ -470,7 +559,8 @@ input, select, textarea {
 .catalog-top-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
+  gap: 1rem;
 }
 
 .page-title-group h2 {
@@ -484,6 +574,95 @@ input, select, textarea {
   font-size: 0.82rem;
   color: var(--text-tertiary);
   margin-top: 0.15rem;
+}
+
+/* Last Bill Overview Pill on New Bill Header */
+.last-bill-header-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.85rem;
+  background: #ffffff;
+  border: 1.5px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  padding: 0.42rem 0.95rem;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  text-align: left;
+}
+
+.last-bill-header-btn:hover {
+  border-color: var(--brown-primary);
+  background: #fdfbf7;
+  transform: translateY(-1.5px);
+  box-shadow: 0 4px 14px rgba(141, 94, 60, 0.14);
+}
+
+.last-bill-header-btn:active {
+  transform: translateY(0);
+}
+
+.last-bill-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.last-bill-icon-badge {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--brown-subtle);
+  color: var(--brown-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.last-bill-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.last-bill-heading {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text-tertiary);
+}
+
+.last-bill-meta {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.last-bill-header-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.2;
+  padding-left: 0.75rem;
+  border-left: 1px solid var(--border-light);
+}
+
+.last-bill-amount {
+  font-size: 1.05rem;
+  font-weight: 900;
+  color: #15803d;
+}
+
+.last-bill-view-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--brown-primary);
+  margin-top: 1px;
 }
 
 .btn-quick-add-item {
@@ -558,20 +737,22 @@ input, select, textarea {
 }
 
 .category-filter-pill {
-  padding: 0.5rem 1.15rem;
+  padding: 0.46rem 1.12rem;
   border-radius: var(--radius-full);
-  background: var(--bg-pill);
-  border: none;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid var(--border-light);
   font-size: 0.84rem;
   font-weight: 700;
   color: var(--text-secondary);
   white-space: nowrap;
-  transition: all 0.12s ease;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  transition: all 0.16s ease;
 }
 
 .category-filter-pill:hover {
-  background: var(--bg-pill-hover);
-  color: var(--text-primary);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.05);
 }
 
 .category-filter-pill.active {
@@ -580,15 +761,196 @@ input, select, textarea {
   box-shadow: 0 2px 6px rgba(24, 24, 27, 0.22);
 }
 
-/* 3-Column Product Cards Grid */
-.products-cards-grid {
+/* Category Filter Pills Light Gradients */
+.category-filter-pill.cat-badge-all-items {
+  background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
+  color: #334155;
+  border-color: #cbd5e1;
+}
+.category-filter-pill.cat-badge-all-items:hover {
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+}
+.category-filter-pill.cat-badge-all-items.active {
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  color: #ffffff;
+  border-color: #0f172a;
+  box-shadow: 0 3px 10px rgba(15, 23, 42, 0.28);
+}
+
+.category-filter-pill.cat-badge-must-try {
+  background: linear-gradient(135deg, #fffdf5 0%, #fef3c7 100%);
+  color: #92400e;
+  border-color: #fde68a;
+}
+.category-filter-pill.cat-badge-must-try:hover {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+}
+.category-filter-pill.cat-badge-must-try.active {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: #ffffff;
+  border-color: #d97706;
+  box-shadow: 0 3px 10px rgba(217, 119, 6, 0.32);
+}
+
+.category-filter-pill.cat-badge-rumali-rolls {
+  background: linear-gradient(135deg, #fffaf5 0%, #ffedd5 100%);
+  color: #c2410c;
+  border-color: #fed7aa;
+}
+.category-filter-pill.cat-badge-rumali-rolls:hover {
+  background: linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%);
+}
+.category-filter-pill.cat-badge-rumali-rolls.active {
+  background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
+  color: #ffffff;
+  border-color: #c2410c;
+  box-shadow: 0 3px 10px rgba(194, 65, 12, 0.32);
+}
+
+.category-filter-pill.cat-badge-mojitos {
+  background: linear-gradient(135deg, #f5fefc 0%, #ccfbf1 100%);
+  color: #0f766e;
+  border-color: #99f6e4;
+}
+.category-filter-pill.cat-badge-mojitos:hover {
+  background: linear-gradient(135deg, #ccfbf1 0%, #99f6e4 100%);
+}
+.category-filter-pill.cat-badge-mojitos.active {
+  background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+  color: #ffffff;
+  border-color: #0f766e;
+  box-shadow: 0 3px 10px rgba(15, 118, 110, 0.32);
+}
+
+.category-filter-pill.cat-badge-fresh-lime {
+  background: linear-gradient(135deg, #fafef0 0%, #ecfccb 100%);
+  color: #3f6212;
+  border-color: #d9f99d;
+}
+.category-filter-pill.cat-badge-fresh-lime:hover {
+  background: linear-gradient(135deg, #ecfccb 0%, #d9f99d 100%);
+}
+.category-filter-pill.cat-badge-fresh-lime.active {
+  background: linear-gradient(135deg, #65a30d 0%, #4d7c0f 100%);
+  color: #ffffff;
+  border-color: #4d7c0f;
+  box-shadow: 0 3px 10px rgba(77, 124, 15, 0.32);
+}
+
+.category-filter-pill.cat-badge-shakes {
+  background: linear-gradient(135deg, #fef8ff 0%, #fae8ff 100%);
+  color: #86198f;
+  border-color: #f0abfc;
+}
+.category-filter-pill.cat-badge-shakes:hover {
+  background: linear-gradient(135deg, #fae8ff 0%, #f5d0fe 100%);
+}
+.category-filter-pill.cat-badge-shakes.active {
+  background: linear-gradient(135deg, #c026d3 0%, #a21caf 100%);
+  color: #ffffff;
+  border-color: #a21caf;
+  box-shadow: 0 3px 10px rgba(162, 28, 175, 0.32);
+}
+
+.category-filter-pill.cat-badge-fresh-juices {
+  background: linear-gradient(135deg, #fff7f7 0%, #ffe4e6 100%);
+  color: #be123c;
+  border-color: #fecdd3;
+}
+.category-filter-pill.cat-badge-fresh-juices:hover {
+  background: linear-gradient(135deg, #ffe4e6 0%, #fecdd3 100%);
+}
+.category-filter-pill.cat-badge-fresh-juices.active {
+  background: linear-gradient(135deg, #e11d48 0%, #be123c 100%);
+  color: #ffffff;
+  border-color: #be123c;
+  box-shadow: 0 3px 10px rgba(190, 18, 60, 0.32);
+}
+
+.category-filter-pill.cat-badge-special-avilmilk {
+  background: linear-gradient(135deg, #fdfbff 0%, #ede9fe 100%);
+  color: #6b21a8;
+  border-color: #ddd6fe;
+}
+.category-filter-pill.cat-badge-special-avilmilk:hover {
+  background: linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%);
+}
+.category-filter-pill.cat-badge-special-avilmilk.active {
+  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+  color: #ffffff;
+  border-color: #6d28d9;
+  box-shadow: 0 3px 10px rgba(109, 40, 217, 0.32);
+}
+
+/* Catalog Scroll Area for Categorized Sections */
+.catalog-scroll-area {
   flex: 1;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.6rem;
+  padding-right: 4px;
+}
+
+.category-products-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.category-section-header {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  width: 100%;
+  padding-top: 0.15rem;
+}
+
+.category-section-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-shrink: 0;
+}
+
+.category-section-badge {
+  font-size: 0.8rem !important;
+  font-weight: 800 !important;
+  padding: 0.22rem 0.7rem !important;
+  letter-spacing: 0.3px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.category-section-count {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+}
+
+.category-section-line {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--border-medium) 0%, rgba(226, 232, 240, 0.2) 100%);
+}
+
+.empty-catalog-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3.5rem 1rem;
+  color: var(--text-tertiary);
+  font-size: 0.95rem;
+  text-align: center;
+}
+
+/* 3-Column Product Cards Grid */
+.products-cards-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 0.9rem;
   align-content: start;
-  padding-right: 4px;
 }
 
 .product-item-card {
@@ -646,15 +1008,67 @@ input, select, textarea {
 }
 
 .card-prod-cat-badge {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
   font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.2px;
-  padding: 0.15rem 0.48rem;
+  padding: 0.16rem 0.52rem;
   border-radius: 999px;
-  background: var(--bg-pill);
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
   color: var(--text-secondary);
   border: 1px solid var(--border-light);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  transition: all 0.15s ease;
+}
+
+/* Category-Specific Light Gradients for Product Badges */
+.card-prod-cat-badge.cat-badge-must-try {
+  background: linear-gradient(135deg, #fffdf2 0%, #fef3c7 100%);
+  color: #92400e;
+  border-color: #fde68a;
+}
+
+.card-prod-cat-badge.cat-badge-rumali-rolls {
+  background: linear-gradient(135deg, #fffaf3 0%, #ffedd5 100%);
+  color: #c2410c;
+  border-color: #fed7aa;
+}
+
+.card-prod-cat-badge.cat-badge-mojitos {
+  background: linear-gradient(135deg, #f3fdfa 0%, #ccfbf1 100%);
+  color: #0f766e;
+  border-color: #99f6e4;
+}
+
+.card-prod-cat-badge.cat-badge-fresh-lime {
+  background: linear-gradient(135deg, #f9feec 0%, #ecfccb 100%);
+  color: #3f6212;
+  border-color: #d9f99d;
+}
+
+.card-prod-cat-badge.cat-badge-shakes {
+  background: linear-gradient(135deg, #fef6ff 0%, #fae8ff 100%);
+  color: #86198f;
+  border-color: #f0abfc;
+}
+
+.card-prod-cat-badge.cat-badge-fresh-juices {
+  background: linear-gradient(135deg, #fff5f5 0%, #ffe4e6 100%);
+  color: #be123c;
+  border-color: #fecdd3;
+}
+
+.card-prod-cat-badge.cat-badge-special-avilmilk {
+  background: linear-gradient(135deg, #fcf8ff 0%, #ede9fe 100%);
+  color: #6b21a8;
+  border-color: #ddd6fe;
+}
+
+.card-prod-cat-badge.cat-badge-all-items {
+  background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
+  color: #334155;
+  border-color: #cbd5e1;
 }
 
 .product-item-card.has-in-cart {
@@ -887,6 +1301,151 @@ input, select, textarea {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+}
+
+/* Open Food Control */
+.open-food-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.btn-add-open-food {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.52rem 0.85rem;
+  background: #ffffff;
+  border: 1.5px dashed var(--border-medium);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 0.84rem;
+  font-weight: 700;
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+.btn-add-open-food:hover {
+  border-color: #0284c7;
+  color: #0284c7;
+  background: #f0f9ff;
+}
+
+.open-food-form-card {
+  width: 100%;
+  background: #ffffff;
+  border: 1.5px solid #bae6fd;
+  border-radius: var(--radius-sm);
+  padding: 0.65rem 0.75rem;
+  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.open-food-form-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.open-food-form-title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #0369a1;
+  letter-spacing: 0.3px;
+}
+
+.open-food-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.open-food-close-btn:hover {
+  color: var(--text-primary);
+  background: #f1f5f9;
+}
+
+.open-food-inputs-row {
+  display: flex;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.open-food-name-input {
+  flex: 2;
+  min-width: 0;
+  padding: 0.46rem 0.6rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-medium);
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: #f8fafc;
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.open-food-name-input:focus {
+  background: #ffffff;
+  border-color: #0284c7;
+  box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.15);
+}
+
+.open-food-price-input {
+  flex: 1.1;
+  min-width: 0;
+  width: 75px;
+  padding: 0.46rem 0.6rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-medium);
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  background: #f8fafc;
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.open-food-price-input:focus {
+  background: #ffffff;
+  border-color: #0284c7;
+  box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.15);
+}
+
+.btn-open-food-submit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  padding: 0.46rem 0.75rem;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  color: #ffffff;
+  border: none;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.btn-open-food-submit:hover {
+  background: linear-gradient(135deg, #0369a1 0%, #075985 100%);
+  transform: translateY(-1px);
 }
 
 /* Parcel Fee Control */
@@ -1349,6 +1908,95 @@ input, select, textarea {
   cursor: not-allowed;
 }
 
+/* Payment Selection Cards in PaymentModal */
+.payment-selection-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.65rem;
+  padding: 1.25rem 0.85rem;
+  border-radius: var(--radius-md);
+  border: 2px solid var(--border-medium);
+  background: #ffffff;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.16s ease;
+  outline: none;
+}
+
+.payment-selection-card:hover,
+.payment-selection-card:focus {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+}
+
+.payment-selection-card.cash:hover,
+.payment-selection-card.cash:focus {
+  border-color: #16a34a;
+  background: #f0fdf4;
+}
+
+.payment-selection-card.upi:hover,
+.payment-selection-card.upi:focus {
+  border-color: #2563eb;
+  background: #eff6ff;
+}
+
+.payment-card-icon-wrap {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.16s ease;
+}
+
+.payment-selection-card:hover .payment-card-icon-wrap {
+  transform: scale(1.1);
+}
+
+.payment-card-icon-wrap.cash {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.payment-card-icon-wrap.upi {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.payment-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.payment-card-name {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.payment-card-sub {
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+  font-weight: 600;
+}
+
+.payment-hotkey-badge {
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: var(--bg-pill);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-light);
+  font-family: var(--font-mono);
+  letter-spacing: 0.2px;
+}
+
 /* Realistic 58mm Thermal Paper Roll Receipt Preview */
 .paper-receipt-container {
   background: #ffffff;
@@ -1462,6 +2110,10 @@ input, select, textarea {
   }
 
   .printer-status-text {
+    display: none;
+  }
+
+  .pwa-btn-text {
     display: none;
   }
 

@@ -3,7 +3,6 @@ import {
   LayoutDashboard, 
   FileText, 
   Package, 
-  Users, 
   TrendingUp, 
   Receipt, 
   BarChart3, 
@@ -33,13 +32,26 @@ import {
   UploadCloud,
   DownloadCloud,
   RefreshCw,
-  AlertCircle
+  AlertCircle,
+  Utensils,
+  Download,
+  Smartphone,
+  Tablet,
+  Monitor
 } from 'lucide-react';
 import { storageService } from './services/storageService';
 import { printerService } from './services/printerService';
 import { firebaseService } from './services/firebaseService';
 import ThermalReceiptPreview from './components/ThermalReceiptPreview';
 import PrinterModal from './components/PrinterModal';
+import PaymentModal from './components/PaymentModal';
+import PwaInstallModal from './components/PwaInstallModal';
+
+export const getCategoryClass = (category) => {
+  if (!category) return 'cat-badge-default';
+  const clean = category.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  return `cat-badge-${clean}`;
+};
 
 export default function App() {
   // Navigation
@@ -65,7 +77,7 @@ export default function App() {
   // Billing View State
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All Items');
-  const [billNo, setBillNo] = useState('INV-000125');
+  const [billNo, setBillNo] = useState('WK0001');
   const [billDate, setBillDate] = useState('23 Sep 2026');
   const [billTime, setBillTime] = useState('10:24 AM');
 
@@ -74,13 +86,29 @@ export default function App() {
   const [parcelCount, setParcelCount] = useState(0);
   const [heldBill, setHeldBill] = useState(null);
 
+  // Open Food State
+  const [showOpenFood, setShowOpenFood] = useState(false);
+  const [openFoodName, setOpenFoodName] = useState('');
+  const [openFoodPrice, setOpenFoodPrice] = useState('');
+  const openFoodNameRef = useRef(null);
+
   // Modals & Popups
   const [showPrinterModal, setShowPrinterModal] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showQuickAddModal, setShowQuickAddModal] = useState(false);
   const [completedSale, setCompletedSale] = useState(null);
   const [viewSaleDetails, setViewSaleDetails] = useState(null);
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Expenses State
+  const [expenses, setExpenses] = useState([]);
+  const [showAddExpenseModal, setShowAddExpenseModal] = useState(false);
+  const [newExpense, setNewExpense] = useState({
+    title: '',
+    category: 'Utilities',
+    amount: '',
+  });
 
   // New Item Quick Form
   const [quickItem, setQuickItem] = useState({
@@ -95,6 +123,12 @@ export default function App() {
   const [firebaseState, setFirebaseState] = useState(firebaseService.getState());
   const [syncingCloud, setSyncingCloud] = useState(false);
   const [syncMessage, setSyncMessage] = useState(null);
+  // PWA (Progressive Web App) Install State
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [isInstallable, setIsInstallable] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
+  const [showInstallGuideModal, setShowInstallGuideModal] = useState(false);
+
   const searchInputRef = useRef(null);
 
   const loadAllData = async () => {
@@ -104,6 +138,7 @@ export default function App() {
     const allSales = await storageService.getSales();
     const metrics = await storageService.getDashboardMetrics();
     const custs = await storageService.getCustomers();
+    const allExpenses = await storageService.getExpenses();
 
     setProducts(prods);
     setCategories(cats);
@@ -111,6 +146,10 @@ export default function App() {
     setSales(allSales);
     setDashboardMetrics(metrics);
     setCustomers(custs);
+    setExpenses(allExpenses);
+
+    const nextBill = await storageService.getNextBillNumber();
+    setBillNo(nextBill);
 
     const now = new Date();
     setBillDate(now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }));
@@ -119,6 +158,29 @@ export default function App() {
 
   useEffect(() => {
     loadAllData();
+
+    // Check Standalone Mode (Launched as PWA on Phone / Tablet / PC)
+    const checkStandalone = () => {
+      const isStandaloneMode = window.matchMedia('(display-mode: standalone)').matches || 
+                               window.navigator.standalone === true;
+      setIsStandalone(Boolean(isStandaloneMode));
+    };
+    checkStandalone();
+
+    const handleBeforeInstallPrompt = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setIsInstallable(true);
+    };
+
+    const handleAppInstalled = () => {
+      setIsInstallable(false);
+      setDeferredPrompt(null);
+      setIsStandalone(true);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
 
     const unsub = printerService.subscribe((s) => {
       setPrinterConnected(s.isConnected);
@@ -147,16 +209,105 @@ export default function App() {
       unsubFb();
       firebaseService.stopLiveSync();
       window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
     };
   }, []);
 
-  // Filtered Products
+  // Trigger PWA Installation prompt or show modal guide
+  const handleTriggerInstall = async () => {
+    if (deferredPrompt) {
+      try {
+        deferredPrompt.prompt();
+        const choice = await deferredPrompt.userChoice;
+        if (choice.outcome === 'accepted') {
+          setIsInstallable(false);
+          setDeferredPrompt(null);
+        }
+      } catch (_) {
+        setShowInstallGuideModal(true);
+      }
+    } else {
+      setShowInstallGuideModal(true);
+    }
+  };
+
+  // Filtered Products (with flexible search support for 'A Mojito', 'Mojito', etc.)
   const filteredProducts = products.filter(p => {
     const matchCat = selectedCategory === 'All Items' || p.category === selectedCategory;
-    const matchSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                        (p.category && p.category.toLowerCase().includes(searchTerm.toLowerCase()));
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return matchCat;
+
+    const stripped = term.replace(/^(a|an)\s+/i, '');
+    const pName = p.name.toLowerCase();
+    const pCat = (p.category || '').toLowerCase();
+
+    const matchSearch = pName.includes(term) || 
+                        pName.includes(stripped) || 
+                        term.includes(pName) ||
+                        pCat.includes(term) || 
+                        pCat.includes(stripped) ||
+                        term.includes(pCat);
+
     return matchCat && matchSearch;
   });
+
+  // Group products into ordered category sections (Must Try -> Rumali Rolls -> Fresh Lime -> Shakes -> Fresh Juices -> Special Avilmilk -> Mojitos)
+  const categorySections = React.useMemo(() => {
+    if (selectedCategory !== 'All Items') {
+      return filteredProducts.length > 0 
+        ? [{ category: selectedCategory, items: filteredProducts }] 
+        : [];
+    }
+
+    const sections = [];
+    const nonMojitoCategories = categories.filter(c => c !== 'All Items' && c !== 'Mojitos');
+    const seenCategories = new Set(['Mojitos']);
+
+    // 1. Follow defined sequence for all categories except Mojitos
+    nonMojitoCategories.forEach(cat => {
+      const items = filteredProducts.filter(p => p.category === cat);
+      if (items.length > 0) {
+        sections.push({ category: cat, items });
+        seenCategories.add(cat);
+      }
+    });
+
+    // 2. Extra/custom categories added dynamically (except Mojitos)
+    filteredProducts.forEach(p => {
+      if (p.category && !seenCategories.has(p.category) && p.category !== 'All Items' && p.category !== 'Mojitos') {
+        const items = filteredProducts.filter(x => x.category === p.category);
+        sections.push({ category: p.category, items });
+        seenCategories.add(p.category);
+      }
+    });
+
+    // 3. Fallback for uncategorized products
+    const uncategorized = filteredProducts.filter(p => !p.category);
+    if (uncategorized.length > 0) {
+      sections.push({ category: 'Other', items: uncategorized });
+    }
+
+    // 4. Mojitos at the very end of All Items
+    const mojitoItems = filteredProducts.filter(p => p.category === 'Mojitos');
+    if (mojitoItems.length > 0) {
+      sections.push({ category: 'Mojitos', items: mojitoItems });
+    }
+
+    return sections;
+  }, [filteredProducts, selectedCategory, categories]);
+
+  // Ensure Mojitos is strictly at the end of the category filter buttons
+  const displayCategories = React.useMemo(() => {
+    const list = categories.filter(c => c !== 'Mojitos');
+    if (categories.includes('Mojitos')) {
+      list.push('Mojitos');
+    }
+    return list;
+  }, [categories]);
+
+  // Last bill for quick header overview
+  const lastSale = sales && sales.length > 0 ? sales[0] : null;
 
   // Cart Calculations
   const itemsSubtotal = cartItems.reduce((sum, item) => sum + (item.sellingPrice * item.qty), 0);
@@ -182,6 +333,27 @@ export default function App() {
         amount: product.sellingPrice,
       }];
     });
+  };
+
+  const handleAddOpenFood = (e) => {
+    if (e) e.preventDefault();
+    const price = parseFloat(openFoodPrice);
+    if (isNaN(price) || price <= 0) {
+      alert('Please enter a valid price for the open food item.');
+      return;
+    }
+    const name = openFoodName.trim() || 'Open Food';
+    const newItem = {
+      id: `open_${Date.now()}`,
+      name,
+      sellingPrice: price,
+      purchasePrice: Math.round(price * 0.5),
+      category: 'Open Food',
+    };
+    handleAddToCart(newItem);
+    setOpenFoodName('');
+    setOpenFoodPrice('');
+    setShowOpenFood(false);
   };
 
   const handleUpdateQty = (productId, delta) => {
@@ -219,12 +391,22 @@ export default function App() {
     }
   };
 
-  // Complete & Print Bill (Fast & Direct)
-  const handlePrintBill = async () => {
+  // Trigger Payment Selection Modal (Cash / UPI) before printing, or print directly if toggled off in settings
+  const handlePrintBill = () => {
     if (cartItems.length === 0) {
       alert('Add products to bill before printing.');
       return;
     }
+    if (settings.showPaymentModal === false) {
+      handleConfirmPaymentAndPrint('Cash');
+    } else {
+      setShowPaymentModal(true);
+    }
+  };
+
+  // Complete & Print Bill with selected payment method (Cash / UPI)
+  const handleConfirmPaymentAndPrint = async (paymentMethod = 'Cash') => {
+    setShowPaymentModal(false);
 
     const payload = {
       billNo,
@@ -237,7 +419,7 @@ export default function App() {
       discount: 0,
       tax: 0,
       total: grandTotal,
-      paymentMethod: 'Cash',
+      paymentMethod: paymentMethod,
       amountReceived: grandTotal,
       change: 0,
       customerName: 'Walk-in Customer',
@@ -250,8 +432,6 @@ export default function App() {
       printerService.printReceipt(saved, settings).catch(() => {});
     }
 
-    // Open receipt preview modal
-    setCompletedSale(saved);
     setMobileCartOpen(false);
 
     // Prepare next bill immediately
@@ -262,11 +442,41 @@ export default function App() {
     loadAllData();
   };
 
+  // Expense Handlers (Add & Delete)
+  const handleSaveExpense = async (e) => {
+    e.preventDefault();
+    if (!newExpense.title.trim() || !newExpense.amount) return;
+
+    const created = await storageService.saveExpense({
+      title: newExpense.title.trim(),
+      category: newExpense.category || 'Utilities',
+      amount: Number(newExpense.amount),
+    });
+
+    setExpenses(prev => [created, ...prev.filter(x => x.id !== created.id)]);
+    setShowAddExpenseModal(false);
+    setNewExpense({ title: '', category: 'Utilities', amount: '' });
+
+    const metrics = await storageService.getDashboardMetrics();
+    setDashboardMetrics(metrics);
+  };
+
+  const handleDeleteExpense = async (id) => {
+    if (window.confirm('Are you sure you want to delete this expense?')) {
+      const updated = await storageService.deleteExpense(id);
+      setExpenses(updated);
+      const metrics = await storageService.getDashboardMetrics();
+      setDashboardMetrics(metrics);
+    }
+  };
+
   const handleDeleteInvoice = async (saleId) => {
     const updated = await storageService.deleteSale(saleId);
     setSales(updated);
     const metrics = await storageService.getDashboardMetrics();
     setDashboardMetrics(metrics);
+    const nextBillNo = await storageService.getNextBillNumber();
+    setBillNo(nextBillNo);
     if (viewSaleDetails?.id === saleId) setViewSaleDetails(null);
   };
 
@@ -317,27 +527,32 @@ export default function App() {
         </div>
 
         <div className="top-bar-right">
-          {activeTab === 'billing' && (
+          {/* PWA Install Button (Shown on Tablet / Phone / PC when not running standalone) */}
+          {!isStandalone && (
             <button 
-              className="btn-quick-add-item top-quick-add"
-              onClick={() => setShowQuickAddModal(true)}
+              type="button"
+              className="pwa-topbar-install-btn"
+              onClick={handleTriggerInstall}
+              title="Install Weknd POS as App on Tablet / Phone / PC"
             >
-              <Plus size={15} />
-              <span>Quick Add</span>
+              <Download size={14} />
+              <span className="pwa-btn-text">Install App</span>
             </button>
           )}
 
-          <button 
-            className={`cloud-status-pill ${firebaseState.status === 'connected' ? 'connected' : firebaseState.status === 'permission_denied' ? 'warning' : ''}`}
-            onClick={() => selectTab('settings')}
-            title={`Firebase Realtime Database: ${firebaseState.status}`}
-          >
-            <Cloud size={15} />
-            <span className="printer-status-text">
-              {firebaseState.status === 'connected' ? 'Cloud Synced' : firebaseState.status === 'permission_denied' ? 'Rules Needed' : firebaseState.status === 'connecting' ? 'Connecting...' : 'Cloud DB'}
-            </span>
-            <span className={`status-dot ${firebaseState.status === 'connected' ? 'online' : firebaseState.status === 'permission_denied' ? 'warning' : ''}`} />
-          </button>
+          {activeTab !== 'billing' && (
+            <button 
+              className={`cloud-status-pill ${firebaseState.status === 'connected' ? 'connected' : firebaseState.status === 'permission_denied' ? 'warning' : ''}`}
+              onClick={() => selectTab('settings')}
+              title={`Firebase Realtime Database: ${firebaseState.status}`}
+            >
+              <Cloud size={15} />
+              <span className="printer-status-text">
+                {firebaseState.status === 'connected' ? 'Cloud Synced' : firebaseState.status === 'permission_denied' ? 'Rules Needed' : firebaseState.status === 'connecting' ? 'Connecting...' : 'Cloud DB'}
+              </span>
+              <span className={`status-dot ${firebaseState.status === 'connected' ? 'online' : firebaseState.status === 'permission_denied' ? 'warning' : ''}`} />
+            </button>
+          )}
 
           <button 
             className={`printer-status-pill ${printerConnected ? 'connected' : ''}`}
@@ -406,14 +621,6 @@ export default function App() {
           </button>
 
           <button 
-            className={`nav-link-btn ${activeTab === 'customers' ? 'active' : ''}`}
-            onClick={() => selectTab('customers')}
-          >
-            <Users size={18} />
-            <span>Customers</span>
-          </button>
-
-          <button 
             className={`nav-link-btn ${activeTab === 'sales' ? 'active' : ''}`}
             onClick={() => selectTab('sales')}
           >
@@ -444,6 +651,20 @@ export default function App() {
             <Settings size={18} />
             <span>Settings</span>
           </button>
+
+          {/* PWA Install Button in Sidebar */}
+          <button 
+            type="button"
+            className="nav-link-btn pwa-sidebar-btn" 
+            onClick={() => {
+              handleTriggerInstall();
+              setSidebarOpen(false);
+            }}
+            title="Install as App on PC / Tablet / Phone"
+          >
+            <Download size={18} />
+            <span>{isStandalone ? 'App Installed ✓' : 'Install App'}</span>
+          </button>
         </nav>
 
         {/* Sidebar Profile & Logout Footer */}
@@ -453,7 +674,7 @@ export default function App() {
               <User size={18} />
             </div>
             <div>
-              <div className="user-meta-name">Muhammad Fayiz</div>
+              <div className="user-meta-name">weknd.official</div>
               <div className="user-meta-role">Admin</div>
             </div>
           </div>
@@ -480,13 +701,31 @@ export default function App() {
                   <p>Quick and easy billing</p>
                 </div>
 
-                <button 
-                  className="btn-quick-add-item"
-                  onClick={() => setShowQuickAddModal(true)}
-                >
-                  <Plus size={16} />
-                  <span>Quick Add</span>
-                </button>
+                {lastSale && (
+                  <button 
+                    type="button" 
+                    className="last-bill-header-btn"
+                    onClick={() => setViewSaleDetails(lastSale)}
+                    title={`Click to view details for bill ${lastSale.billNo}`}
+                  >
+                    <div className="last-bill-header-left">
+                      <div className="last-bill-icon-badge">
+                        <Receipt size={16} />
+                      </div>
+                      <div className="last-bill-text">
+                        <span className="last-bill-heading">Last Bill</span>
+                        <span className="last-bill-meta font-mono">{lastSale.billNo}</span>
+                      </div>
+                    </div>
+                    <div className="last-bill-header-right">
+                      <span className="last-bill-amount font-mono">₹{lastSale.total}</span>
+                      <span className="last-bill-view-hint">
+                        <Eye size={12} />
+                        <span>Details</span>
+                      </span>
+                    </div>
+                  </button>
+                )}
               </div>
 
               {/* Search with Ctrl + K */}
@@ -504,10 +743,10 @@ export default function App() {
 
               {/* Category Filter Pills */}
               <div className="category-pills-row">
-                {categories.map(cat => (
+                {displayCategories.map(cat => (
                   <button
                     key={cat}
-                    className={`category-filter-pill ${selectedCategory === cat ? 'active' : ''}`}
+                    className={`category-filter-pill ${getCategoryClass(cat)} ${selectedCategory === cat ? 'active' : ''}`}
                     onClick={() => setSelectedCategory(cat)}
                   >
                     {cat}
@@ -515,35 +754,65 @@ export default function App() {
                 ))}
               </div>
 
-              {/* 3-Column Product Cards Grid */}
-              <div className="products-cards-grid">
-                {filteredProducts.map(prod => {
-                  const cartItem = cartItems.find(it => it.productId === prod.id);
-                  return (
+              {/* Categorized Product Sections in Catalog Scroll Area */}
+              <div className="catalog-scroll-area">
+                {categorySections.length === 0 ? (
+                  <div className="empty-catalog-state">
+                    <p>No products found matching your search.</p>
+                  </div>
+                ) : (
+                  categorySections.map(sec => (
                     <div 
-                      key={prod.id}
-                      className={`product-item-card ${cartItem ? 'has-in-cart' : ''}`}
-                      onClick={() => handleAddToCart(prod)}
+                      key={sec.category} 
+                      id={`sec-${getCategoryClass(sec.category)}`} 
+                      className="category-products-section"
                     >
-                      <div className="card-title-price">
-                        <div className="card-prod-name">{prod.name}</div>
-                        <div className="card-prod-meta-row">
-                          <span className="card-prod-price font-mono">₹{prod.sellingPrice}</span>
-                          {selectedCategory === 'All Items' && (
-                            <span className="card-prod-cat-badge">{prod.category}</span>
-                          )}
+                      {/* Section Header with Light Gradient Badge & Item Count */}
+                      <div className="category-section-header">
+                        <div className="category-section-title-wrap">
+                          <span className={`card-prod-cat-badge ${getCategoryClass(sec.category)} category-section-badge`}>
+                            {sec.category}
+                          </span>
+                          <span className="category-section-count">
+                            {sec.items.length} {sec.items.length === 1 ? 'item' : 'items'}
+                          </span>
                         </div>
+                        <div className="category-section-line" />
                       </div>
-                      <div className={`card-plus-btn ${cartItem ? 'active-count' : ''}`}>
-                        {cartItem ? (
-                          <span className="card-qty-badge font-mono">{cartItem.qty}</span>
-                        ) : (
-                          <Plus size={16} />
-                        )}
+
+                      {/* 3-Column Product Cards Grid for this category */}
+                      <div className="products-cards-grid">
+                        {sec.items.map(prod => {
+                          const cartItem = cartItems.find(it => it.productId === prod.id);
+                          return (
+                            <div 
+                              key={prod.id}
+                              className={`product-item-card ${cartItem ? 'has-in-cart' : ''}`}
+                              onClick={() => handleAddToCart(prod)}
+                            >
+                              <div className="card-title-price">
+                                <div className="card-prod-name">{prod.name}</div>
+                                <div className="card-prod-meta-row">
+                                  <span className="card-prod-price font-mono">₹{prod.sellingPrice}</span>
+                                  <span className={`card-prod-cat-badge ${getCategoryClass(prod.category)}`}>
+                                    {prod.category}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className={`card-plus-btn ${cartItem ? 'active-count' : ''}`}>
+                                {cartItem ? (
+                                  <span className="card-qty-badge font-mono">{cartItem.qty}</span>
+                                ) : (
+                                  <Plus size={16} />
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
-                  );
-                })}
+                  ))
+                )}
               </div>
             </section>
 
@@ -618,6 +887,69 @@ export default function App() {
 
               {/* Grand Total & Parcel Fee Section */}
               <div className="bill-grand-total-section">
+                {/* Open Food Option (Top of Parcel Fee) */}
+                {!showOpenFood ? (
+                  <div className="open-food-row">
+                    <button 
+                      type="button" 
+                      className="btn-add-open-food"
+                      onClick={() => {
+                        setShowOpenFood(true);
+                        setTimeout(() => openFoodNameRef.current?.focus(), 60);
+                      }}
+                    >
+                      <Utensils size={15} />
+                      <span>+ Add Open Food</span>
+                    </button>
+                  </div>
+                ) : (
+                  <form className="open-food-form-card" onSubmit={handleAddOpenFood}>
+                    <div className="open-food-form-header">
+                      <div className="open-food-form-title">
+                        <Utensils size={14} />
+                        <span>Add Open Food</span>
+                      </div>
+                      <button 
+                        type="button" 
+                        className="open-food-close-btn"
+                        onClick={() => {
+                          setShowOpenFood(false);
+                          setOpenFoodName('');
+                          setOpenFoodPrice('');
+                        }}
+                        title="Cancel"
+                      >
+                        <X size={15} />
+                      </button>
+                    </div>
+
+                    <div className="open-food-inputs-row">
+                      <input 
+                        ref={openFoodNameRef}
+                        type="text" 
+                        className="open-food-name-input"
+                        placeholder="Item name (e.g. Extra Mayo)"
+                        value={openFoodName}
+                        onChange={e => setOpenFoodName(e.target.value)}
+                      />
+                      <input 
+                        type="number" 
+                        className="open-food-price-input font-mono"
+                        placeholder="Price ₹"
+                        min="1"
+                        step="any"
+                        required
+                        value={openFoodPrice}
+                        onChange={e => setOpenFoodPrice(e.target.value)}
+                      />
+                      <button type="submit" className="btn-open-food-submit">
+                        <Plus size={14} />
+                        <span>Add</span>
+                      </button>
+                    </div>
+                  </form>
+                )}
+
                 {/* Parcel Fee Control (Click to show plus and minus buttons; adds ₹5 per parcel) */}
                 {parcelCount === 0 ? (
                   <div className="parcel-fee-row">
@@ -724,7 +1056,7 @@ export default function App() {
             <div className="view-header-row">
               <div>
                 <h2>Dashboard</h2>
-                <p style={{ fontSize: '0.84rem', color: 'var(--text-tertiary)' }}>Good morning, Muhammad!</p>
+                <p style={{ fontSize: '0.84rem', color: 'var(--text-tertiary)' }}>Welcome, weknd.official!</p>
               </div>
               <span className="category-filter-pill" style={{ background: '#fff', border: '1px solid var(--border-light)' }}>
                 Today ▾
@@ -841,7 +1173,7 @@ export default function App() {
                 <button 
                   className="btn-clear-bill-outline"
                   onClick={async () => {
-                    if (window.confirm('Reset catalog to official Weknd menu (45 items)?')) {
+                    if (window.confirm('Reset catalog to official Weknd menu (41 items)?')) {
                       const res = await storageService.resetToOfficialMenu();
                       setProducts(res);
                       const cats = await storageService.getCategories();
@@ -878,7 +1210,6 @@ export default function App() {
                     <th>Product</th>
                     <th>Category</th>
                     <th>Price</th>
-                    <th>Stock</th>
                     <th>Status</th>
                     <th style={{ textAlign: 'right' }}>Action</th>
                   </tr>
@@ -889,9 +1220,8 @@ export default function App() {
                     .map(p => (
                     <tr key={p.id}>
                       <td style={{ fontWeight: 700 }}>{p.name}</td>
-                      <td><span className="card-prod-cat-badge">{p.category}</span></td>
+                      <td><span className={`card-prod-cat-badge ${getCategoryClass(p.category)}`}>{p.category}</span></td>
                       <td className="font-mono" style={{ fontWeight: 800 }}>₹{p.sellingPrice}</td>
-                      <td className="font-mono">{p.stock || 50}</td>
                       <td><span className="status-tag-active">Active</span></td>
                       <td style={{ textAlign: 'right' }}>
                         <button 
@@ -1017,55 +1347,96 @@ export default function App() {
         )}
 
         {/* =========================================================================
-            TAB: CUSTOMERS
-           ========================================================================= */}
-        {activeTab === 'customers' && (
-          <div className="view-container-standard">
-            <h2>Customers</h2>
-            <div className="pos-table-card">
-              <table className="pos-table">
-                <thead>
-                  <tr>
-                    <th>Customer Name</th>
-                    <th>Phone</th>
-                    <th>Credit / Due</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {customers.map(c => (
-                    <tr key={c.id}>
-                      <td style={{ fontWeight: 700 }}>{c.name}</td>
-                      <td>{c.phone || '-'}</td>
-                      <td className="font-mono" style={{ fontWeight: 800, color: c.dueAmount > 0 ? 'var(--red-accent)' : 'inherit' }}>₹{c.dueAmount}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* =========================================================================
-            TAB: EXPENSES
+            TAB: EXPENSES (Add & Delete Options)
            ========================================================================= */}
         {activeTab === 'expenses' && (
           <div className="view-container-standard">
-            <h2>Expenses</h2>
+            <div className="view-header-row">
+              <div>
+                <h2>Expenses ({expenses.length})</h2>
+                <p style={{ margin: '0.2rem 0 0', fontSize: '0.82rem', color: 'var(--text-tertiary)' }}>
+                  Manage daily shop expenses and operational payouts
+                </p>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div style={{
+                  padding: '0.45rem 0.9rem',
+                  borderRadius: '20px',
+                  background: '#fef2f2',
+                  border: '1px solid #fee2e2',
+                  color: 'var(--red-accent)',
+                  fontWeight: 800,
+                  fontSize: '0.85rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem'
+                }}>
+                  <span>Total Expenses:</span>
+                  <span className="font-mono">
+                    ₹{expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0).toLocaleString('en-IN')}
+                  </span>
+                </div>
+                <button 
+                  type="button"
+                  className="btn-print-bill-primary" 
+                  style={{ width: 'auto', padding: '0.55rem 1.15rem', fontSize: '0.85rem' }} 
+                  onClick={() => setShowAddExpenseModal(true)}
+                >
+                  <Plus size={15} />
+                  <span>+ Add Expense</span>
+                </button>
+              </div>
+            </div>
+
             <div className="pos-table-card">
               <table className="pos-table">
                 <thead>
                   <tr>
-                    <th>Date</th>
+                    <th>Date & Time</th>
+                    <th>Expense Description</th>
                     <th>Category</th>
                     <th>Amount</th>
+                    <th style={{ textAlign: 'right' }}>Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr>
-                    <td>23 Sep 2026</td>
-                    <td>Shop Utilities & Paper</td>
-                    <td className="font-mono" style={{ fontWeight: 800, color: 'var(--red-accent)' }}>₹1,200</td>
-                  </tr>
+                  {expenses.length === 0 ? (
+                    <tr>
+                      <td colSpan="5" style={{ textAlign: 'center', padding: '3rem 1rem', color: 'var(--text-tertiary)' }}>
+                        No expenses recorded yet. Click <strong>+ Add Expense</strong> above to add one.
+                      </td>
+                    </tr>
+                  ) : (
+                    expenses.map(exp => (
+                      <tr key={exp.id}>
+                        <td style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                          <div style={{ fontWeight: 600 }}>{exp.date}</div>
+                          {exp.time && <div style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)' }}>{exp.time}</div>}
+                        </td>
+                        <td style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+                          {exp.title}
+                        </td>
+                        <td>
+                          <span className="card-prod-cat-badge cat-badge-default" style={{ background: '#f1f5f9', color: '#475569' }}>
+                            {exp.category || 'Utilities'}
+                          </span>
+                        </td>
+                        <td className="font-mono" style={{ fontWeight: 800, color: 'var(--red-accent)', fontSize: '0.95rem' }}>
+                          ₹{Number(exp.amount).toLocaleString('en-IN')}
+                        </td>
+                        <td style={{ textAlign: 'right' }}>
+                          <button 
+                            type="button"
+                            className="entry-del-btn" 
+                            onClick={() => handleDeleteExpense(exp.id)}
+                            title="Delete Expense"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -1078,6 +1449,75 @@ export default function App() {
         {activeTab === 'settings' && (
           <div className="view-container-standard" style={{ maxWidth: '680px' }}>
             <h2>Settings & Cloud</h2>
+
+            {/* PWA & App Installation Card */}
+            <div className="pos-table-card" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.6rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                  <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#fef3c7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#b45309' }}>
+                    <Download size={22} />
+                  </div>
+                  <div>
+                    <strong style={{ fontSize: '1.02rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      App Installation (PWA)
+                      <span className="card-prod-cat-badge" style={{ 
+                        background: isStandalone ? '#dcfce7' : '#eff6ff',
+                        color: isStandalone ? '#15803d' : '#2563eb'
+                      }}>
+                        {isStandalone ? 'INSTALLED APP' : 'BROWSER MODE'}
+                      </span>
+                    </strong>
+                    <p style={{ fontSize: '0.78rem', color: 'var(--text-tertiary)', margin: '0.15rem 0 0' }}>
+                      Install on iPad, Android Tablet, Phone, Windows PC, or Mac
+                    </p>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <button 
+                    type="button"
+                    className="btn-print-bill-primary"
+                    style={{ width: 'auto', padding: '0.52rem 1.15rem', fontSize: '0.84rem', display: 'flex', alignItems: 'center', gap: '0.45rem' }}
+                    onClick={handleTriggerInstall}
+                  >
+                    <Download size={15} />
+                    <span>{isStandalone ? 'Install Instructions' : 'Install Weknd POS'}</span>
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem', marginTop: '0.2rem' }}>
+                <div style={{ padding: '0.75rem', borderRadius: '10px', background: '#f8fafc', border: '1px solid var(--border-light)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700, fontSize: '0.82rem', color: 'var(--text-primary)' }}>
+                    <Tablet size={16} color="var(--brown-primary)" />
+                    <span>Tablet / iPad</span>
+                  </div>
+                  <p style={{ margin: '0.3rem 0 0', fontSize: '0.75rem', color: 'var(--text-tertiary)', lineHeight: 1.35 }}>
+                    Full-screen billing with no browser tabs. Fast touch response.
+                  </p>
+                </div>
+
+                <div style={{ padding: '0.75rem', borderRadius: '10px', background: '#f8fafc', border: '1px solid var(--border-light)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700, fontSize: '0.82rem', color: 'var(--text-primary)' }}>
+                    <Monitor size={16} color="var(--brown-primary)" />
+                    <span>PC / Windows / Mac</span>
+                  </div>
+                  <p style={{ margin: '0.3rem 0 0', fontSize: '0.75rem', color: 'var(--text-tertiary)', lineHeight: 1.35 }}>
+                    Standalone desktop window with keyboard shortcuts (Ctrl+K).
+                  </p>
+                </div>
+
+                <div style={{ padding: '0.75rem', borderRadius: '10px', background: '#f8fafc', border: '1px solid var(--border-light)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700, fontSize: '0.82rem', color: 'var(--text-primary)' }}>
+                    <Smartphone size={16} color="var(--brown-primary)" />
+                    <span>Phone (Android / iOS)</span>
+                  </div>
+                  <p style={{ margin: '0.3rem 0 0', fontSize: '0.75rem', color: 'var(--text-tertiary)', lineHeight: 1.35 }}>
+                    Compact bottom drawer cart, easy mobile billing on the go.
+                  </p>
+                </div>
+              </div>
+            </div>
 
             {/* Firebase Realtime Database Section */}
             <div className="pos-table-card" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -1222,6 +1662,59 @@ export default function App() {
               )}
             </div>
 
+            {/* Payment Selection Screen (Cash / GPay) Toggle */}
+            <div className="pos-table-card" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.9rem', marginTop: '1rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                  <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#ecfdf5', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#059669', flexShrink: 0 }}>
+                    <CreditCard size={20} />
+                  </div>
+                  <div>
+                    <strong style={{ fontSize: '1rem', display: 'block', color: 'var(--text-primary)' }}>
+                      Payment Selection Screen (Cash / GPay)
+                    </strong>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', margin: '0.15rem 0 0' }}>
+                      Ask payment option before printing. Turn OFF for 1-click instant direct print.
+                    </p>
+                  </div>
+                </div>
+
+                <label className="toggle-switch-container">
+                  <input 
+                    type="checkbox" 
+                    checked={settings.showPaymentModal !== false}
+                    onChange={async (e) => {
+                      const updated = { ...settings, showPaymentModal: e.target.checked };
+                      setSettings(updated);
+                      await storageService.saveSettings(updated);
+                    }}
+                  />
+                  <span className={`toggle-switch-slider ${settings.showPaymentModal !== false ? 'checked' : ''}`} />
+                </label>
+              </div>
+
+              <div style={{
+                padding: '0.65rem 0.85rem',
+                borderRadius: '8px',
+                background: settings.showPaymentModal !== false ? '#eff6ff' : '#fefce8',
+                border: `1px solid ${settings.showPaymentModal !== false ? '#bfdbfe' : '#fef08a'}`,
+                fontSize: '0.8rem',
+                color: settings.showPaymentModal !== false ? '#1e40af' : '#854d0e',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}>
+                <span style={{ fontWeight: 800 }}>
+                  {settings.showPaymentModal !== false ? 'Status: ON' : 'Status: OFF'}
+                </span>
+                <span>
+                  {settings.showPaymentModal !== false 
+                    ? 'Clicking "Print Bill" opens Cash or UPI/GPay selection popup before printing.' 
+                    : 'Clicking "Print Bill" prints immediately (defaults to Cash) without asking for payment selection.'}
+                </span>
+              </div>
+            </div>
+
             {/* Thermal Printer Settings Section */}
             <div className="pos-table-card" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1291,14 +1784,110 @@ export default function App() {
         </div>
       )}
 
-      {/* 58mm Thermal Receipt Preview Modal */}
-      {completedSale && (
-        <ThermalReceiptPreview 
-          sale={completedSale}
-          settings={settings}
-          onClose={() => setCompletedSale(null)}
-        />
+      {/* Add Expense Modal */}
+      {showAddExpenseModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 110, backdropFilter: 'blur(3px)' }}>
+          <div style={{ background: '#fff', borderRadius: '16px', width: '420px', padding: '1.5rem', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#fee2e2', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Receipt size={18} />
+                </div>
+                <strong style={{ fontSize: '1.1rem', color: '#0f172a' }}>Add New Expense</strong>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setShowAddExpenseModal(false)}
+                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveExpense} style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
+              <div>
+                <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-tertiary)', display: 'block', marginBottom: '0.3rem' }}>
+                  Expense Description *
+                </label>
+                <input 
+                  type="text" 
+                  required 
+                  autoFocus
+                  style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: '8px', border: '1px solid var(--border-light)', fontSize: '0.9rem' }}
+                  value={newExpense.title}
+                  onChange={e => setNewExpense({ ...newExpense, title: e.target.value })}
+                  placeholder="e.g. Ice Delivery, Packaging Boxes, Milk"
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-tertiary)', display: 'block', marginBottom: '0.3rem' }}>
+                  Category
+                </label>
+                <select 
+                  style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: '8px', border: '1px solid var(--border-light)', fontSize: '0.9rem', background: '#fff' }}
+                  value={newExpense.category}
+                  onChange={e => setNewExpense({ ...newExpense, category: e.target.value })}
+                >
+                  <option value="Utilities">Utilities & Bills</option>
+                  <option value="Raw Materials">Raw Materials & Food Ingredients</option>
+                  <option value="Packaging">Packaging & Disposables</option>
+                  <option value="Rent & Maintenance">Rent & Maintenance</option>
+                  <option value="Staff Wages">Staff & Wages</option>
+                  <option value="Shop Supplies">Shop Supplies & Paper</option>
+                  <option value="Other">Other Miscellaneous</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-tertiary)', display: 'block', marginBottom: '0.3rem' }}>
+                  Amount (₹) *
+                </label>
+                <input 
+                  type="number" 
+                  required 
+                  min="1"
+                  step="any"
+                  style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: '8px', border: '1px solid var(--border-light)', fontSize: '0.95rem', fontWeight: 700 }}
+                  value={newExpense.amount}
+                  onChange={e => setNewExpense({ ...newExpense, amount: e.target.value })}
+                  placeholder="e.g. 500"
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.6rem', marginTop: '0.75rem' }}>
+                <button 
+                  type="button" 
+                  className="btn-clear-bill-outline" 
+                  onClick={() => setShowAddExpenseModal(false)}
+                  style={{ padding: '0.55rem 1rem' }}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  className="btn-print-bill-primary" 
+                  style={{ width: 'auto', padding: '0.55rem 1.4rem' }}
+                >
+                  Save Expense
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
+
+      {/* Cash / UPI Payment Selection Modal */}
+      <PaymentModal 
+        isOpen={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        onSelectPayment={handleConfirmPaymentAndPrint}
+        total={grandTotal}
+        billNo={billNo}
+        itemsCount={cartItems.reduce((acc, i) => acc + i.qty, 0)}
+      />
+
+
 
       {/* Sale Details Modal */}
       {viewSaleDetails && (
@@ -1314,6 +1903,15 @@ export default function App() {
       {showPrinterModal && (
         <PrinterModal onClose={() => setShowPrinterModal(false)} />
       )}
+
+      {/* PWA App Install Modal */}
+      <PwaInstallModal 
+        isOpen={showInstallGuideModal}
+        onClose={() => setShowInstallGuideModal(false)}
+        onInstallDirect={handleTriggerInstall}
+        isInstallable={isInstallable}
+        isStandalone={isStandalone}
+      />
     </div>
   );
 }

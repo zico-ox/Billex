@@ -24,15 +24,19 @@ export const COMMANDS = {
 
 const LINE_WIDTH = 32;
 
+export function cleanText(str = '') {
+  return String(str || '').trim();
+}
+
 export function cleanAscii(str = '') {
-  return String(str)
+  return String(str || '')
     .replace(/₹/g, 'Rs.')
     .replace(/[^\x20-\x7E\n]/g, ' ')
     .trim();
 }
 
 export function padCenter(text, width = LINE_WIDTH) {
-  const clean = cleanAscii(text);
+  const clean = cleanText(text);
   if (clean.length >= width) return clean.slice(0, width);
   const left = Math.floor((width - clean.length) / 2);
   const right = width - clean.length - left;
@@ -40,47 +44,61 @@ export function padCenter(text, width = LINE_WIDTH) {
 }
 
 export function padLeft(text, width) {
-  const clean = cleanAscii(text);
+  const clean = cleanText(text);
   if (clean.length >= width) return clean.slice(0, width);
   return ' '.repeat(width - clean.length) + clean;
 }
 
 export function padRight(text, width) {
-  const clean = cleanAscii(text);
+  const clean = cleanText(text);
   if (clean.length >= width) return clean.slice(0, width);
   return clean + ' '.repeat(width - clean.length);
 }
 
 export function twoColumn(left, right, width = LINE_WIDTH) {
-  const cleanLeft = cleanAscii(left);
-  const cleanRight = cleanAscii(right);
+  const cleanLeft = cleanText(left);
+  const cleanRight = cleanText(right);
   const spaces = width - cleanLeft.length - cleanRight.length;
   if (spaces >= 1) return cleanLeft + ' '.repeat(spaces) + cleanRight;
   const avail = Math.max(3, width - cleanRight.length - 1);
   return cleanLeft.slice(0, avail) + ' ' + cleanRight;
 }
 
-export function threeColumn(col1, col2, col3, w1 = 15, w2 = 6, w3 = 11) {
-  const c1 = padRight(cleanAscii(col1), w1);
-  const c2 = padLeft(cleanAscii(col2), w2);
-  const c3 = padLeft(cleanAscii(col3), w3);
+export function threeColumn(col1, col2, col3, w1 = 17, w2 = 4, w3 = 11) {
+  const c1 = padRight(col1, w1);
+  const c2 = padLeft(col2, w2);
+  const c3 = padLeft(col3, w3);
   return c1 + c2 + c3;
 }
 
 export function cleanBillNo(str = '') {
-  const match = String(str).match(/(\d+)/);
-  if (match) return match[1].padStart(6, '0');
-  return '000125';
+  const s = String(str || '').trim();
+  const match = s.match(/(\d+)/);
+  if (match) {
+    const num = parseInt(match[1], 10);
+    return `WK${String(num).padStart(4, '0')}`;
+  }
+  return 'WK0001';
 }
 
 export function formatReceiptDateTime(sale) {
-  let d = new Date();
+  let d = null;
   if (sale.timestamp) {
     d = new Date(sale.timestamp);
   } else if (sale.date) {
+    const parts = String(sale.date).match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+    if (parts) {
+      const day = parts[1].padStart(2, '0');
+      const month = parts[2].padStart(2, '0');
+      const year = parts[3].slice(-2);
+      const timeStr = sale.time || '10:00 AM';
+      return `${day}/${month}/${year} ${timeStr}`;
+    }
     const parsed = Date.parse(sale.date);
     if (!isNaN(parsed)) d = new Date(parsed);
   }
+
+  if (!d || isNaN(d.getTime())) d = new Date();
 
   const day = String(d.getDate()).padStart(2, '0');
   const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -93,24 +111,22 @@ export function formatReceiptDateTime(sale) {
 }
 
 export function formatReceiptText(sale, settings = {}) {
-  const shopName = settings.shopName || 'WEKND.';
+  const shopName = settings.shopName || 'Weknd.';
   const subTitle = settings.subTitle || 'Juice & Rolls';
   const divider = '-'.repeat(LINE_WIDTH);
 
   const lines = [];
 
-  // Header (Centered, bold and bigger)
-  lines.push(padCenter(shopName.toUpperCase()));
+  // Header (Centered)
+  lines.push(padCenter(shopName));
   if (subTitle) lines.push(padCenter(subTitle));
   lines.push('');
 
-  // Bill No and Date/Time
-  const billLine = `Bill: ${cleanBillNo(sale.billNo)} | ${formatReceiptDateTime(sale)}`;
-  lines.push(cleanAscii(billLine));
+  // Bill No and Date/Time (e.g. WK0145 | 01/10/26 09:53 PM)
+  const billLine = `${cleanBillNo(sale.billNo)} | ${formatReceiptDateTime(sale)}`;
+  lines.push(billLine);
 
-  // Table Header
-  lines.push(divider);
-  lines.push('Product           Qty     Amount');
+  // Table Divider
   lines.push(divider);
 
   // Items
@@ -118,38 +134,40 @@ export function formatReceiptText(sale, settings = {}) {
   items.forEach(item => {
     const name = item.name || 'Item';
     const qty = String(item.qty || 1);
-    const amount = `Rs.${Number(item.amount || (item.sellingPrice * item.qty)).toFixed(0)}`;
+    const amount = `₹${Number(item.amount || (item.sellingPrice * item.qty)).toFixed(0)}`;
 
-    if (name.length <= 16) {
-      lines.push(threeColumn(name, qty, amount, 16, 5, 11));
+    if (name.length <= 17) {
+      lines.push(threeColumn(name, qty, amount, 17, 4, 11));
     } else {
       lines.push(name.slice(0, LINE_WIDTH));
-      lines.push(threeColumn('  ', qty, amount, 16, 5, 11));
+      lines.push(threeColumn('  ', qty, amount, 17, 4, 11));
     }
   });
-
-  lines.push(divider);
 
   // Parcel Fee (if present)
   if (sale.parcelFee && Number(sale.parcelFee) > 0) {
     const pCount = sale.parcelCount || Math.round(Number(sale.parcelFee) / 5);
-    lines.push(twoColumn(`Parcel Fee (${pCount})`, `Rs.${Number(sale.parcelFee).toFixed(0)}`));
+    lines.push(twoColumn(`Parcel Fee (${pCount})`, `₹${Number(sale.parcelFee).toFixed(0)}`, LINE_WIDTH));
   }
 
-  // TOTAL (Bigger & bold)
-  lines.push(twoColumn('TOTAL', `Rs.${Number(sale.total).toFixed(0)}`));
+  // Divider before TOTAL
   lines.push(divider);
 
-  // Footer
-  lines.push('');
+  // TOTAL
+  lines.push(twoColumn('TOTAL', `₹${Number(sale.total).toFixed(0)}`, LINE_WIDTH));
+
+  // Divider after TOTAL
+  lines.push(divider);
+
+  // Footer (Directly below divider, matching user template)
   lines.push(padCenter('THANK YOU!'));
-  lines.push(padCenter('VISIT WEKND. AGAIN'));
+  lines.push(padCenter('@weknd.official'));
 
   return lines;
 }
 
 export function generateReceiptEscPosBytes(sale, settings = {}) {
-  const shopName = settings.shopName || 'WEKND.';
+  const shopName = settings.shopName || 'Weknd.';
   const subTitle = settings.subTitle || 'Juice & Rolls';
   const feedLines = settings.feedLines || 4;
   const divider = '-'.repeat(LINE_WIDTH);
@@ -168,11 +186,11 @@ export function generateReceiptEscPosBytes(sale, settings = {}) {
   append(COMMANDS.INIT);
   append(COMMANDS.LINE_SPACING_DEFAULT);
 
-  // Header (Both in center, bold & bigger)
+  // Header (Centered, bold)
   append(COMMANDS.ALIGN_CENTER);
   append(COMMANDS.BOLD_ON);
   append(COMMANDS.DOUBLE_SIZE);
-  appendLine(shopName.toUpperCase());
+  appendLine(shopName);
   append(COMMANDS.NORMAL_SIZE);
   append(COMMANDS.DOUBLE_HEIGHT);
   if (subTitle) appendLine(subTitle);
@@ -182,13 +200,9 @@ export function generateReceiptEscPosBytes(sale, settings = {}) {
 
   // Bill Line
   append(COMMANDS.ALIGN_LEFT);
-  appendLine(`Bill: ${cleanBillNo(sale.billNo)} | ${formatReceiptDateTime(sale)}`);
+  appendLine(`${cleanBillNo(sale.billNo)} | ${formatReceiptDateTime(sale)}`);
 
-  // Table Header
-  appendLine(divider);
-  append(COMMANDS.BOLD_ON);
-  appendLine('Product           Qty     Amount');
-  append(COMMANDS.BOLD_OFF);
+  // Divider
   appendLine(divider);
 
   // Items
@@ -197,16 +211,13 @@ export function generateReceiptEscPosBytes(sale, settings = {}) {
     const qty = String(item.qty || 1);
     const amount = `Rs.${Number(item.amount || (item.sellingPrice * item.qty)).toFixed(0)}`;
 
-    if (name.length <= 16) {
-      appendLine(threeColumn(name, qty, amount, 16, 5, 11));
+    if (name.length <= 17) {
+      appendLine(threeColumn(name, qty, amount, 17, 4, 11));
     } else {
       appendLine(name.slice(0, LINE_WIDTH));
-      appendLine(threeColumn('  ', qty, amount, 16, 5, 11));
+      appendLine(threeColumn('  ', qty, amount, 17, 4, 11));
     }
   });
-
-  // Divider
-  appendLine(divider);
 
   // Parcel Fee (if present)
   if (sale.parcelFee && Number(sale.parcelFee) > 0) {
@@ -214,20 +225,24 @@ export function generateReceiptEscPosBytes(sale, settings = {}) {
     appendLine(twoColumn(`Parcel Fee (${pCount})`, `Rs.${Number(sale.parcelFee).toFixed(0)}`));
   }
 
+  // Divider before TOTAL
+  appendLine(divider);
+
   // TOTAL (Bigger & Bold)
   append(COMMANDS.BOLD_ON);
   append(COMMANDS.DOUBLE_HEIGHT);
   appendLine(twoColumn('TOTAL', `Rs.${Number(sale.total).toFixed(0)}`));
   append(COMMANDS.NORMAL_SIZE);
   append(COMMANDS.BOLD_OFF);
+
+  // Divider after TOTAL
   appendLine(divider);
 
   // Footer (Centered & Bold)
-  appendLine('');
   append(COMMANDS.ALIGN_CENTER);
   append(COMMANDS.BOLD_ON);
   appendLine('THANK YOU!');
-  appendLine('VISIT WEKND. AGAIN');
+  appendLine('@weknd.official');
   append(COMMANDS.BOLD_OFF);
 
   // Feed & Cut

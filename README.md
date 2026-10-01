@@ -9,10 +9,10 @@ Built with React, Vite, Firebase Realtime Database, and Web ESC/POS Thermal Prin
 ## ⚡ Features
 
 - **Rapid POS Billing**: 1-click cart addition, fast quantity steppers, parcel fee calculation (₹5/parcel), hold & clear bill.
-- **Full 45-Item Menu**: Pre-loaded catalog across 7 categories:
+- **Full 41-Item Menu**: Pre-loaded catalog across 7 categories:
   - Must Try (12 items)
   - Rumali Rolls (5 items)
-  - Mojitos (5 items)
+  - Mojitos (1 item - all flavors ₹89)
   - Fresh Lime (5 items)
   - Shakes (12 items)
   - Fresh Juices (5 items)
