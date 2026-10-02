@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Printer, Bluetooth, Usb, Server, Smartphone, CheckCircle2, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Printer, Bluetooth, Usb, Server, Smartphone, RefreshCw, X } from 'lucide-react';
 import { printerService } from '../services/printerService';
 
 export default function PrinterModal({ onClose }) {
@@ -54,7 +54,9 @@ export default function PrinterModal({ onClose }) {
             <Printer size={18} color="var(--brand-caramel)" />
             <h3>EXEO EX58P Hardware Adapter</h3>
           </div>
-          <button onClick={onClose} style={{ color: 'var(--text-tertiary)' }}>✕</button>
+          <button onClick={onClose} style={{ color: 'var(--text-tertiary)', background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }} aria-label="Close">
+            <X size={18} />
+          </button>
         </div>
 
         <div className="modal-body-area" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>

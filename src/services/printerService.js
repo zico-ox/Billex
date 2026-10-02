@@ -77,10 +77,14 @@ class PrinterService {
                 targetChar = char;
                 break;
               }
-            } catch (_) {}
+            } catch {
+              // try next characteristic
+            }
           }
           if (targetChar) break;
-        } catch (_) {}
+        } catch {
+          // try next service
+        }
       }
 
       if (!targetChar) {

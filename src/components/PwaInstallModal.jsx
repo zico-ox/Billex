@@ -8,9 +8,7 @@ import {
   Share2, 
   PlusSquare, 
   CheckCircle2, 
-  Sparkles,
-  ArrowRight,
-  Maximize2
+  Sparkles
 } from 'lucide-react';
 
 export default function PwaInstallModal({ 

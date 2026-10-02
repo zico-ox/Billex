@@ -12,13 +12,9 @@ import {
   Minus, 
   Trash2, 
   Printer, 
-  RotateCcw, 
   MoreVertical, 
   LogOut, 
   Bookmark, 
-  Check, 
-  Banknote, 
-  QrCode, 
   CreditCard, 
   User, 
   Store,
@@ -29,8 +25,6 @@ import {
   ChevronDown,
   Cloud,
   Database,
-  UploadCloud,
-  DownloadCloud,
   RefreshCw,
   AlertCircle,
   Utensils,
@@ -42,20 +36,15 @@ import {
 import { storageService } from './services/storageService';
 import { printerService } from './services/printerService';
 import { firebaseService } from './services/firebaseService';
+import { getCategoryClass } from './utils/categoryUtils';
 import ThermalReceiptPreview from './components/ThermalReceiptPreview';
 import PrinterModal from './components/PrinterModal';
 import PaymentModal from './components/PaymentModal';
 import PwaInstallModal from './components/PwaInstallModal';
 
-export const getCategoryClass = (category) => {
-  if (!category) return 'cat-badge-default';
-  const clean = category.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-  return `cat-badge-${clean}`;
-};
-
 export default function App() {
   // Navigation
-  const [activeTab, setActiveTab] = useState('billing'); // 'dashboard' | 'billing' | 'products' | 'customers' | 'sales' | 'expenses' | 'reports' | 'settings'
+  const [activeTab, setActiveTab] = useState('billing'); // 'dashboard' | 'billing' | 'products' | 'sales' | 'expenses' | 'reports' | 'settings'
 
   // Data
   const [products, setProducts] = useState([]);
@@ -63,14 +52,14 @@ export default function App() {
   const [settings, setSettings] = useState({});
   const [sales, setSales] = useState([]);
   const [dashboardMetrics, setDashboardMetrics] = useState({
-    todaySales: 12450,
-    billsCount: 42,
-    cashTotal: 6200,
-    upiTotal: 5850,
-    expensesTotal: 1200,
-    profitTotal: 3250,
-    creditTotal: 1000,
-    cardTotal: 400,
+    todaySales: 0,
+    billsCount: 0,
+    cashTotal: 0,
+    upiTotal: 0,
+    expensesTotal: 0,
+    profitTotal: 0,
+    creditTotal: 0,
+    cardTotal: 0,
     recentBills: [],
   });
 
@@ -78,8 +67,14 @@ export default function App() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All Items');
   const [billNo, setBillNo] = useState('WK0001');
-  const [billDate, setBillDate] = useState('23 Sep 2026');
-  const [billTime, setBillTime] = useState('10:24 AM');
+  const [billDate, setBillDate] = useState(() => {
+    const now = new Date();
+    return now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  });
+  const [billTime, setBillTime] = useState(() => {
+    const now = new Date();
+    return now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+  });
 
   // Direct cart state (Starts clean and empty)
   const [cartItems, setCartItems] = useState([]);
@@ -96,7 +91,6 @@ export default function App() {
   const [showPrinterModal, setShowPrinterModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showQuickAddModal, setShowQuickAddModal] = useState(false);
-  const [completedSale, setCompletedSale] = useState(null);
   const [viewSaleDetails, setViewSaleDetails] = useState(null);
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -116,7 +110,6 @@ export default function App() {
     category: 'Rumali Rolls',
     sellingPrice: '',
   });
-  const [customers, setCustomers] = useState([]);
 
   // Printer status
   const [printerConnected, setPrinterConnected] = useState(printerService.isConnected);
@@ -132,32 +125,45 @@ export default function App() {
   const searchInputRef = useRef(null);
 
   const loadAllData = async () => {
-    const prods = await storageService.getProducts();
-    const cats = await storageService.getCategories();
-    const sett = await storageService.getSettings();
-    const allSales = await storageService.getSales();
-    const metrics = await storageService.getDashboardMetrics();
-    const custs = await storageService.getCustomers();
-    const allExpenses = await storageService.getExpenses();
+    try {
+      const [prods, cats, sett, allSales, allExpenses] = await Promise.all([
+        storageService.getProducts(),
+        storageService.getCategories(),
+        storageService.getSettings(),
+        storageService.getSales(),
+        storageService.getExpenses()
+      ]);
 
-    setProducts(prods);
-    setCategories(cats);
-    setSettings(sett);
-    setSales(allSales);
-    setDashboardMetrics(metrics);
-    setCustomers(custs);
-    setExpenses(allExpenses);
+      setProducts(prods || []);
+      setCategories(cats || []);
+      setSettings(sett || {});
+      setSales(allSales || []);
+      setExpenses(allExpenses || []);
 
-    const nextBill = await storageService.getNextBillNumber();
-    setBillNo(nextBill);
+      const metrics = await storageService.getDashboardMetrics(allSales, allExpenses);
+      setDashboardMetrics(metrics);
 
-    const now = new Date();
-    setBillDate(now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }));
-    setBillTime(now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }));
+      const nextBill = await storageService.getNextBillNumber(allSales);
+      setBillNo(nextBill);
+
+      const now = new Date();
+      setBillDate(now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }));
+      setBillTime(now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }));
+    } catch (err) {
+      console.error('[Billex] Error loading data from Firebase:', err);
+    }
   };
 
   useEffect(() => {
-    loadAllData();
+    let isMounted = true;
+    const init = async () => {
+      try {
+        if (isMounted) await loadAllData();
+      } catch {
+        // ignore
+      }
+    };
+    init();
 
     // Check Standalone Mode (Launched as PWA on Phone / Tablet / PC)
     const checkStandalone = () => {
@@ -190,10 +196,24 @@ export default function App() {
       setFirebaseState(s);
     });
 
-    // Start live sync across devices if connected
+    // Start live sync across all devices in real-time
     firebaseService.startLiveSync(({ type, data }) => {
-      if (type === 'products') setProducts(data);
-      if (type === 'sales') setSales(data);
+      if (type === 'products') setProducts(data || []);
+      if (type === 'categories') setCategories(data || []);
+      if (type === 'sales') {
+        const newSales = data || [];
+        setSales(newSales);
+        storageService.getDashboardMetrics(newSales, null).then(setDashboardMetrics);
+        storageService.getNextBillNumber(newSales).then(setBillNo);
+      }
+      if (type === 'expenses') {
+        const newExp = data || [];
+        setExpenses(newExp);
+        storageService.getDashboardMetrics(null, newExp).then(setDashboardMetrics);
+      }
+      if (type === 'settings') {
+        if (data) setSettings(data);
+      }
     });
 
     const handleKeyDown = (e) => {
@@ -205,6 +225,7 @@ export default function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => {
+      isMounted = false;
       unsub();
       unsubFb();
       firebaseService.stopLiveSync();
@@ -224,7 +245,7 @@ export default function App() {
           setIsInstallable(false);
           setDeferredPrompt(null);
         }
-      } catch (_) {
+      } catch {
         setShowInstallGuideModal(true);
       }
     } else {
@@ -439,7 +460,6 @@ export default function App() {
     setParcelCount(0);
     const nextBillNo = await storageService.getNextBillNumber();
     setBillNo(nextBillNo);
-    loadAllData();
   };
 
   // Expense Handlers (Add & Delete)
@@ -447,50 +467,37 @@ export default function App() {
     e.preventDefault();
     if (!newExpense.title.trim() || !newExpense.amount) return;
 
-    const created = await storageService.saveExpense({
+    await storageService.saveExpense({
       title: newExpense.title.trim(),
       category: newExpense.category || 'Utilities',
       amount: Number(newExpense.amount),
     });
 
-    setExpenses(prev => [created, ...prev.filter(x => x.id !== created.id)]);
     setShowAddExpenseModal(false);
     setNewExpense({ title: '', category: 'Utilities', amount: '' });
-
-    const metrics = await storageService.getDashboardMetrics();
-    setDashboardMetrics(metrics);
   };
 
   const handleDeleteExpense = async (id) => {
     if (window.confirm('Are you sure you want to delete this expense?')) {
-      const updated = await storageService.deleteExpense(id);
-      setExpenses(updated);
-      const metrics = await storageService.getDashboardMetrics();
-      setDashboardMetrics(metrics);
+      await storageService.deleteExpense(id);
     }
   };
 
   const handleDeleteInvoice = async (saleId) => {
-    const updated = await storageService.deleteSale(saleId);
-    setSales(updated);
-    const metrics = await storageService.getDashboardMetrics();
-    setDashboardMetrics(metrics);
-    const nextBillNo = await storageService.getNextBillNumber();
-    setBillNo(nextBillNo);
+    await storageService.deleteSale(saleId);
     if (viewSaleDetails?.id === saleId) setViewSaleDetails(null);
   };
 
   const handleQuickAddSave = async (e) => {
     e.preventDefault();
     if (!quickItem.name.trim() || !quickItem.sellingPrice) return;
-    const created = await storageService.saveProduct({
+    await storageService.saveProduct({
       name: quickItem.name.trim(),
       category: quickItem.category,
       sellingPrice: Number(quickItem.sellingPrice),
       stock: 50,
       status: 'Active'
     });
-    setProducts(prev => [created, ...prev]);
     setShowQuickAddModal(false);
     setQuickItem({ name: '', category: 'Rumali Rolls', sellingPrice: '' });
   };
@@ -1173,18 +1180,16 @@ export default function App() {
                 <button 
                   className="btn-clear-bill-outline"
                   onClick={async () => {
-                    if (window.confirm('Reset catalog to official Weknd menu (41 items)?')) {
-                      const res = await storageService.resetToOfficialMenu();
-                      setProducts(res);
-                      const cats = await storageService.getCategories();
-                      setCategories(cats);
-                    }
+                    const prods = await storageService.getProducts();
+                    setProducts(prods || []);
+                    const cats = await storageService.getCategories();
+                    setCategories(cats || []);
                   }}
-                  title="Restore full official menu"
+                  title="Reload menu from Firebase Cloud"
                   style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem' }}
                 >
-                  <RotateCcw size={15} />
-                  <span>Reset to Official Menu</span>
+                  <RefreshCw size={15} />
+                  <span>Refresh Cloud Menu</span>
                 </button>
                 <button className="btn-print-bill-primary" style={{ width: 'auto', padding: '0.55rem 1.15rem', fontSize: '0.85rem' }} onClick={() => setShowQuickAddModal(true)}>
                   <Plus size={15} />
@@ -1320,28 +1325,55 @@ export default function App() {
               </span>
             </div>
 
-            <div className="dashboard-kpi-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+            <div className="dashboard-kpi-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
               <div className="kpi-stat-card">
                 <div className="kpi-title-label">Total Sales</div>
-                <div className="kpi-figure-value green font-mono">₹1,24,500</div>
+                <div className="kpi-figure-value green font-mono">
+                  ₹{sales.reduce((sum, s) => sum + (Number(s.total) || 0), 0).toLocaleString('en-IN')}
+                </div>
               </div>
               <div className="kpi-stat-card">
                 <div className="kpi-title-label">Total Bills</div>
-                <div className="kpi-figure-value font-mono">420</div>
+                <div className="kpi-figure-value font-mono">{sales.length}</div>
               </div>
               <div className="kpi-stat-card">
-                <div className="kpi-title-label">Profit</div>
-                <div className="kpi-figure-value green font-mono">₹32,450</div>
+                <div className="kpi-title-label">Cash Sales</div>
+                <div className="kpi-figure-value green font-mono">
+                  ₹{sales.filter(s => (s.paymentMethod || '').toLowerCase().includes('cash')).reduce((sum, s) => sum + (Number(s.total) || 0), 0).toLocaleString('en-IN')}
+                </div>
+              </div>
+              <div className="kpi-stat-card">
+                <div className="kpi-title-label">UPI / Online</div>
+                <div className="kpi-figure-value green font-mono">
+                  ₹{sales.filter(s => (s.paymentMethod || '').toLowerCase().includes('upi')).reduce((sum, s) => sum + (Number(s.total) || 0), 0).toLocaleString('en-IN')}
+                </div>
               </div>
             </div>
 
             <div className="pos-table-card" style={{ padding: '1.25rem' }}>
-              <strong style={{ fontSize: '0.9rem', color: 'var(--text-primary)' }}>Daily Sales</strong>
-              <div className="bar-chart-mock">
-                {[30, 45, 60, 25, 80, 50, 65, 40, 75, 90, 55, 60, 70, 85, 40, 50, 65, 80, 75, 90, 85, 60, 70, 80, 65, 95].map((h, i) => (
-                  <div key={i} className="mock-bar" style={{ height: `${h}%` }} title={`Day ${i+1}: ${h * 50}`} />
-                ))}
-              </div>
+              <strong style={{ fontSize: '0.9rem', color: 'var(--text-primary)' }}>Recent Bills Breakdown</strong>
+              {sales.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '2.5rem 1rem', color: 'var(--text-tertiary)', fontSize: '0.85rem' }}>
+                  No sales recorded yet. Completed orders will appear here automatically.
+                </div>
+              ) : (
+                <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                  {sales.slice(0, 10).map((s) => {
+                    const maxVal = Math.max(...sales.slice(0, 10).map(x => Number(x.total) || 1));
+                    const pct = Math.max(12, Math.min(100, Math.round(((Number(s.total) || 0) / maxVal) * 100)));
+                    return (
+                      <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.82rem' }}>
+                        <span className="font-mono" style={{ width: '70px', fontWeight: 700 }}>{s.billNo}</span>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', width: '80px' }}>{s.time || ''}</span>
+                        <div style={{ flex: 1, background: '#f1f5f9', height: '20px', borderRadius: '6px', overflow: 'hidden' }}>
+                          <div style={{ width: `${pct}%`, height: '100%', background: 'var(--accent-green)', borderRadius: '6px', transition: 'width 0.3s ease' }} />
+                        </div>
+                        <span className="font-mono" style={{ width: '65px', textAlign: 'right', fontWeight: 800 }}>₹{s.total}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -1613,45 +1645,18 @@ export default function App() {
                     setSyncingCloud(true);
                     setSyncMessage(null);
                     try {
-                      const res = await storageService.uploadAllToFirebase();
-                      setSyncMessage(`Successfully uploaded ${res.count} products & shop data to Firebase!`);
+                      await loadAllData();
+                      setSyncMessage('Successfully refreshed all catalog & sales directly from Firebase!');
                     } catch (err) {
-                      setSyncMessage(`Upload failed: ${err.message || 'Permission denied'}`);
+                      setSyncMessage(`Sync failed: ${err.message || 'Permission denied'}`);
                     } finally {
                       setSyncingCloud(false);
-                      setTimeout(() => setSyncMessage(null), 6000);
+                      setTimeout(() => setSyncMessage(null), 5000);
                     }
                   }}
                 >
-                  <UploadCloud size={16} />
-                  <span>{syncingCloud ? 'Uploading...' : 'Upload All Menu & Data to Cloud'}</span>
-                </button>
-
-                <button 
-                  className="btn-clear-bill-outline"
-                  style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.55rem 1.1rem', fontSize: '0.82rem' }}
-                  disabled={syncingCloud}
-                  onClick={async () => {
-                    setSyncingCloud(true);
-                    setSyncMessage(null);
-                    try {
-                      const res = await storageService.pullAllFromFirebase();
-                      if (res) {
-                        await loadAllData();
-                        setSyncMessage('Successfully pulled latest cloud database!');
-                      } else {
-                        setSyncMessage('No data found in Firebase node yet.');
-                      }
-                    } catch (err) {
-                      setSyncMessage(`Pull failed: ${err.message || 'Permission denied'}`);
-                    } finally {
-                      setSyncingCloud(false);
-                      setTimeout(() => setSyncMessage(null), 6000);
-                    }
-                  }}
-                >
-                  <DownloadCloud size={16} />
-                  <span>Pull from Cloud</span>
+                  <RefreshCw size={16} className={syncingCloud ? 'spin' : ''} />
+                  <span>{syncingCloud ? 'Refreshing...' : 'Refresh from Firebase Cloud'}</span>
                 </button>
               </div>
 

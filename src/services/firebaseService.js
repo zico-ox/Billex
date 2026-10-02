@@ -1,6 +1,7 @@
 /**
  * Firebase Realtime Database Service for Billex / Weknd POS
  * Database URL: https://wallet-830a8-default-rtdb.firebaseio.com/
+ * All store data (Products, Sales, Categories, Expenses, Settings) is driven purely by Firebase.
  */
 
 import { initializeApp, getApps } from 'firebase/app';
@@ -42,13 +43,19 @@ class FirebaseService {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_FIREBASE);
       if (saved) return { ...DEFAULT_FIREBASE_CONFIG, ...JSON.parse(saved) };
-    } catch (_) {}
+    } catch {
+      // ignore
+    }
     return { ...DEFAULT_FIREBASE_CONFIG };
   }
 
   saveConfig(newConfig) {
     this.config = { ...this.config, ...newConfig };
-    localStorage.setItem(STORAGE_KEY_FIREBASE, JSON.stringify(this.config));
+    try {
+      localStorage.setItem(STORAGE_KEY_FIREBASE, JSON.stringify(this.config));
+    } catch {
+      // ignore
+    }
     this.init();
     this.notify();
   }
@@ -62,7 +69,9 @@ class FirebaseService {
   notify() {
     const state = this.getState();
     this.subscribers.forEach(cb => {
-      try { cb(state); } catch (_) {}
+      try { cb(state); } catch {
+        // ignore subscriber errors
+      }
     });
   }
 
@@ -90,7 +99,6 @@ class FirebaseService {
       this.lastError = null;
       this.notify();
 
-      // Check if already initialized
       const appName = 'billex-app';
       const existingApps = getApps();
       const existing = existingApps.find(a => a.name === appName);
@@ -108,7 +116,7 @@ class FirebaseService {
 
       this.db = getDatabase(this.app, this.config.databaseURL);
       
-      // Test connection & listen to status
+      // Test connection
       this.testConnection();
     } catch (err) {
       console.error('[Firebase] Init Error:', err);
@@ -121,7 +129,6 @@ class FirebaseService {
   async testConnection() {
     if (!this.db) return false;
     try {
-      // Test reading metadata node
       const metaRef = ref(this.db, 'billex/_ping');
       await set(metaRef, { timestamp: Date.now(), client: 'Billex Web POS' });
       
@@ -144,22 +151,39 @@ class FirebaseService {
     }
   }
 
-  // --- Realtime Cloud Operations ---
+  // --- Realtime Cloud Operations (CRUD) ---
+
+  // PRODUCTS
+  async getProducts() {
+    if (!this.db) return [];
+    try {
+      const prodsRef = ref(this.db, 'billex/products');
+      const snapshot = await get(prodsRef);
+      if (!snapshot.exists()) return [];
+      const val = snapshot.val();
+      return Object.values(val);
+    } catch (err) {
+      this.handleError(err);
+      return [];
+    }
+  }
 
   async saveProduct(product) {
-    if (!this.db || this.status === 'permission_denied') return;
+    if (!this.db) throw new Error('Database not initialized');
     try {
       const prodRef = ref(this.db, `billex/products/${product.id}`);
       await set(prodRef, product);
       this.lastSyncTime = new Date().toLocaleTimeString();
       this.notify();
+      return product;
     } catch (err) {
       this.handleError(err);
+      throw err;
     }
   }
 
   async deleteProduct(productId) {
-    if (!this.db || this.status === 'permission_denied') return;
+    if (!this.db) throw new Error('Database not initialized');
     try {
       const prodRef = ref(this.db, `billex/products/${productId}`);
       await remove(prodRef);
@@ -167,23 +191,71 @@ class FirebaseService {
       this.notify();
     } catch (err) {
       this.handleError(err);
+      throw err;
+    }
+  }
+
+  // CATEGORIES
+  async getCategories() {
+    if (!this.db) return [];
+    try {
+      const catsRef = ref(this.db, 'billex/categories');
+      const snapshot = await get(catsRef);
+      if (!snapshot.exists()) return [];
+      const val = snapshot.val();
+      return Array.isArray(val) ? val : Object.values(val);
+    } catch (err) {
+      this.handleError(err);
+      return [];
+    }
+  }
+
+  async saveCategories(categories) {
+    if (!this.db) throw new Error('Database not initialized');
+    try {
+      const catsRef = ref(this.db, 'billex/categories');
+      await set(catsRef, categories);
+      this.lastSyncTime = new Date().toLocaleTimeString();
+      this.notify();
+    } catch (err) {
+      this.handleError(err);
+      throw err;
+    }
+  }
+
+  // SALES
+  async getSales() {
+    if (!this.db) return [];
+    try {
+      const salesRef = ref(this.db, 'billex/sales');
+      const snapshot = await get(salesRef);
+      if (!snapshot.exists()) return [];
+      const val = snapshot.val();
+      const list = Object.values(val);
+      list.sort((a, b) => (Number(b.timestamp) || 0) - (Number(a.timestamp) || 0));
+      return list;
+    } catch (err) {
+      this.handleError(err);
+      return [];
     }
   }
 
   async saveSale(sale) {
-    if (!this.db || this.status === 'permission_denied') return;
+    if (!this.db) throw new Error('Database not initialized');
     try {
       const saleRef = ref(this.db, `billex/sales/${sale.id}`);
       await set(saleRef, sale);
       this.lastSyncTime = new Date().toLocaleTimeString();
       this.notify();
+      return sale;
     } catch (err) {
       this.handleError(err);
+      throw err;
     }
   }
 
   async deleteSale(saleId) {
-    if (!this.db || this.status === 'permission_denied') return;
+    if (!this.db) throw new Error('Database not initialized');
     try {
       const saleRef = ref(this.db, `billex/sales/${saleId}`);
       await remove(saleRef);
@@ -191,72 +263,108 @@ class FirebaseService {
       this.notify();
     } catch (err) {
       this.handleError(err);
+      throw err;
     }
   }
 
-  async saveCustomer(customer) {
-    if (!this.db || this.status === 'permission_denied') return;
+  // EXPENSES
+  async getExpenses() {
+    if (!this.db) return [];
     try {
-      const custRef = ref(this.db, `billex/customers/${customer.id}`);
-      await set(custRef, customer);
+      const expRef = ref(this.db, 'billex/expenses');
+      const snapshot = await get(expRef);
+      if (!snapshot.exists()) return [];
+      const val = snapshot.val();
+      const list = Object.values(val);
+      list.sort((a, b) => {
+        const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        return timeB - timeA;
+      });
+      return list;
+    } catch (err) {
+      this.handleError(err);
+      return [];
+    }
+  }
+
+  async saveExpense(expense) {
+    if (!this.db) throw new Error('Database not initialized');
+    try {
+      const expRef = ref(this.db, `billex/expenses/${expense.id}`);
+      await set(expRef, expense);
+      this.lastSyncTime = new Date().toLocaleTimeString();
+      this.notify();
+      return expense;
+    } catch (err) {
+      this.handleError(err);
+      throw err;
+    }
+  }
+
+  async deleteExpense(expenseId) {
+    if (!this.db) throw new Error('Database not initialized');
+    try {
+      const expRef = ref(this.db, `billex/expenses/${expenseId}`);
+      await remove(expRef);
       this.lastSyncTime = new Date().toLocaleTimeString();
       this.notify();
     } catch (err) {
       this.handleError(err);
+      throw err;
+    }
+  }
+
+  // SETTINGS
+  async getSettings() {
+    if (!this.db) return null;
+    try {
+      const settRef = ref(this.db, 'billex/settings');
+      const snapshot = await get(settRef);
+      if (!snapshot.exists()) return null;
+      return snapshot.val();
+    } catch (err) {
+      this.handleError(err);
+      return null;
     }
   }
 
   async saveSettings(settings) {
-    if (!this.db || this.status === 'permission_denied') return;
+    if (!this.db) throw new Error('Database not initialized');
     try {
       const settRef = ref(this.db, 'billex/settings');
       await set(settRef, settings);
       this.lastSyncTime = new Date().toLocaleTimeString();
       this.notify();
+      return settings;
     } catch (err) {
       this.handleError(err);
+      throw err;
     }
   }
 
-  /**
-   * Push entire local catalog and data up to Firebase Realtime Database
-   */
-  async pushAllLocalData({ products, categories, sales, customers, settings }) {
-    if (!this.db) throw new Error('Firebase database is not initialized');
+  // CUSTOMERS
+  async getCustomers() {
+    if (!this.db) return [];
     try {
-      this.status = 'connecting';
+      const custRef = ref(this.db, 'billex/customers');
+      const snapshot = await get(custRef);
+      if (!snapshot.exists()) return [];
+      return Object.values(snapshot.val());
+    } catch (err) {
+      this.handleError(err);
+      return [];
+    }
+  }
+
+  async saveCustomer(customer) {
+    if (!this.db) throw new Error('Database not initialized');
+    try {
+      const custRef = ref(this.db, `billex/customers/${customer.id}`);
+      await set(custRef, customer);
+      this.lastSyncTime = new Date().toLocaleTimeString();
       this.notify();
-
-      const rootRef = ref(this.db, 'billex');
-      
-      // Convert arrays to indexed objects for clean RTDB structure
-      const prodsMap = {};
-      (products || []).forEach(p => { if (p.id) prodsMap[p.id] = p; });
-
-      const salesMap = {};
-      (sales || []).forEach(s => { if (s.id) salesMap[s.id] = s; });
-
-      const custMap = {};
-      (customers || []).forEach(c => { if (c.id) custMap[c.id] = c; });
-
-      const payload = {
-        products: prodsMap,
-        categories: categories || [],
-        sales: salesMap,
-        customers: custMap,
-        settings: settings || {},
-        updatedAt: new Date().toISOString(),
-        syncedBy: 'Billex Web POS',
-      };
-
-      await set(rootRef, payload);
-
-      this.status = 'connected';
-      this.lastError = null;
-      this.lastSyncTime = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      this.notify();
-
-      return { success: true, count: products.length };
+      return customer;
     } catch (err) {
       this.handleError(err);
       throw err;
@@ -264,38 +372,7 @@ class FirebaseService {
   }
 
   /**
-   * Pull entire database down from Firebase
-   */
-  async fetchAllData() {
-    if (!this.db) throw new Error('Firebase database is not initialized');
-    try {
-      const rootRef = ref(this.db, 'billex');
-      const snapshot = await get(rootRef);
-      if (!snapshot.exists()) return null;
-
-      const data = snapshot.val();
-      
-      // Normalize objects back to arrays
-      const products = data.products ? Object.values(data.products) : null;
-      const sales = data.sales ? Object.values(data.sales) : null;
-      const customers = data.customers ? Object.values(data.customers) : null;
-      const categories = data.categories || null;
-      const settings = data.settings || null;
-
-      this.status = 'connected';
-      this.lastError = null;
-      this.lastSyncTime = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      this.notify();
-
-      return { products, categories, sales, customers, settings };
-    } catch (err) {
-      this.handleError(err);
-      throw err;
-    }
-  }
-
-  /**
-   * Start live synchronization for multi-device sync
+   * Start live synchronization for multi-device sync across all entities
    */
   startLiveSync(onDataUpdate) {
     if (!this.db || !this.config.autoSync) return;
@@ -308,19 +385,75 @@ class FirebaseService {
         if (snapshot.exists()) {
           const prods = Object.values(snapshot.val());
           if (onDataUpdate) onDataUpdate({ type: 'products', data: prods });
+        } else {
+          if (onDataUpdate) onDataUpdate({ type: 'products', data: [] });
         }
       }, (err) => this.handleError(err));
       this.liveUnsubscribers.push(unsubProds);
+
+      // Categories live listener
+      const catsRef = ref(this.db, 'billex/categories');
+      const unsubCats = onValue(catsRef, (snapshot) => {
+        if (snapshot.exists()) {
+          const cats = snapshot.val();
+          const list = Array.isArray(cats) ? cats : Object.values(cats);
+          if (onDataUpdate) onDataUpdate({ type: 'categories', data: list });
+        }
+      }, (err) => this.handleError(err));
+      this.liveUnsubscribers.push(unsubCats);
 
       // Sales live listener
       const salesRef = ref(this.db, 'billex/sales');
       const unsubSales = onValue(salesRef, (snapshot) => {
         if (snapshot.exists()) {
           const sales = Object.values(snapshot.val());
+          sales.sort((a, b) => (Number(b.timestamp) || 0) - (Number(a.timestamp) || 0));
           if (onDataUpdate) onDataUpdate({ type: 'sales', data: sales });
+        } else {
+          if (onDataUpdate) onDataUpdate({ type: 'sales', data: [] });
         }
       }, (err) => this.handleError(err));
       this.liveUnsubscribers.push(unsubSales);
+
+      // Expenses live listener
+      const expRef = ref(this.db, 'billex/expenses');
+      const unsubExp = onValue(expRef, (snapshot) => {
+        if (snapshot.exists()) {
+          const exp = Object.values(snapshot.val());
+          exp.sort((a, b) => {
+            const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+            const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+            return timeB - timeA;
+          });
+          if (onDataUpdate) onDataUpdate({ type: 'expenses', data: exp });
+        } else {
+          if (onDataUpdate) onDataUpdate({ type: 'expenses', data: [] });
+        }
+      }, (err) => this.handleError(err));
+      this.liveUnsubscribers.push(unsubExp);
+
+      // Settings live listener
+      const settRef = ref(this.db, 'billex/settings');
+      const unsubSett = onValue(settRef, (snapshot) => {
+        if (snapshot.exists()) {
+          const sett = snapshot.val();
+          if (onDataUpdate) onDataUpdate({ type: 'settings', data: sett });
+        }
+      }, (err) => this.handleError(err));
+      this.liveUnsubscribers.push(unsubSett);
+
+      // Customers live listener
+      const custRef = ref(this.db, 'billex/customers');
+      const unsubCust = onValue(custRef, (snapshot) => {
+        if (snapshot.exists()) {
+          const custs = Object.values(snapshot.val());
+          if (onDataUpdate) onDataUpdate({ type: 'customers', data: custs });
+        } else {
+          if (onDataUpdate) onDataUpdate({ type: 'customers', data: [] });
+        }
+      }, (err) => this.handleError(err));
+      this.liveUnsubscribers.push(unsubCust);
+
     } catch (err) {
       this.handleError(err);
     }
@@ -328,7 +461,9 @@ class FirebaseService {
 
   stopLiveSync() {
     this.liveUnsubscribers.forEach(unsub => {
-      try { unsub(); } catch (_) {}
+      try { unsub(); } catch {
+        // ignore
+      }
     });
     this.liveUnsubscribers = [];
   }
