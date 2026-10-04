@@ -30,7 +30,7 @@ class StorageService {
       ...prod,
       id,
       sellingPrice: Number(prod.sellingPrice) || 0,
-      purchasePrice: Number(prod.purchasePrice) || Math.round((Number(prod.sellingPrice) || 0) * 0.55),
+      purchasePrice: Number(prod.purchasePrice) || Math.round((Number(prod.sellingPrice) || 0) * 0.65),
       stock: Number(prod.stock) || 50,
       status: prod.status || 'Active',
       updatedAt: new Date().toISOString(),
@@ -101,7 +101,7 @@ class StorageService {
     let profit = 0;
     (saleData.items || []).forEach(it => {
       const itemSell = Number(it.sellingPrice) || 0;
-      const itemBuy = Number(it.purchasePrice) || Math.round(itemSell * 0.55);
+      const itemBuy = Number(it.purchasePrice) || Math.round(itemSell * 0.65);
       profit += (itemSell - itemBuy) * (Number(it.qty) || 1);
     });
 
@@ -129,6 +129,40 @@ class StorageService {
     }
 
     return fullSale;
+  }
+
+  async updateSalePayment(saleId, paymentMethod, isConfirmed = true) {
+    const sales = await this.getSales();
+    const target = sales.find(s => s.id === saleId);
+    if (!target) return null;
+
+    const previousMethod = target.paymentMethod;
+    const updated = { 
+      ...target, 
+      paymentMethod,
+      paymentConfirmed: isConfirmed,
+      isUnmarked: !isConfirmed
+    };
+    await firebaseService.saveSale(updated);
+
+    // If changing to Credit, update customer due
+    if (paymentMethod === 'Credit' && target.customerId && previousMethod !== 'Credit') {
+      const custs = await this.getCustomers();
+      const cTarget = custs.find(c => c.id === target.customerId);
+      if (cTarget) {
+        const updatedDue = (Number(cTarget.dueAmount) || 0) + (Number(target.total) || 0);
+        await firebaseService.saveCustomer({ ...cTarget, dueAmount: updatedDue });
+      }
+    } else if (previousMethod === 'Credit' && paymentMethod !== 'Credit' && target.customerId) {
+      const custs = await this.getCustomers();
+      const cTarget = custs.find(c => c.id === target.customerId);
+      if (cTarget) {
+        const updatedDue = Math.max(0, (Number(cTarget.dueAmount) || 0) - (Number(target.total) || 0));
+        await firebaseService.saveCustomer({ ...cTarget, dueAmount: updatedDue });
+      }
+    }
+
+    return updated;
   }
 
   async deleteSale(saleId) {
@@ -211,7 +245,7 @@ class StorageService {
       else if (m.includes('card')) card += tot;
       else if (m.includes('credit')) credit += tot;
 
-      totalProfit += Number(s.profit || (tot * 0.45));
+      totalProfit += Number(s.profit || (tot * 0.35));
     });
 
     const expensesTotal = expenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);

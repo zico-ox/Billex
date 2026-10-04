@@ -1,22 +1,60 @@
-import React, { useState } from 'react';
-import { X, Printer, CheckCircle, AlertCircle, Copy, Trash2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Printer, CheckCircle, AlertCircle, Copy, Trash2, Banknote, QrCode, Check } from 'lucide-react';
 import { formatReceiptText } from '../services/escpos';
 import { printerService } from '../services/printerService';
 
-export default function ThermalReceiptPreview({ sale, settings, onClose, onPrintConfirmed, onDelete }) {
+export default function ThermalReceiptPreview({ 
+  sale, 
+  settings, 
+  onClose, 
+  onPrintConfirmed, 
+  onDelete,
+  onUpdatePayment 
+}) {
   const [isPrinting, setIsPrinting] = useState(false);
   const [printStatus, setPrintStatus] = useState(null);
   const [copied, setCopied] = useState(false);
 
+  const [currentPayment, setCurrentPayment] = useState(sale?.paymentMethod || 'Cash');
+  const [isUnmarked, setIsUnmarked] = useState(sale?.paymentConfirmed === false || sale?.isUnmarked === true);
+  const [isUpdatingPayment, setIsUpdatingPayment] = useState(false);
+
+  useEffect(() => {
+    if (sale) {
+      setCurrentPayment(sale.paymentMethod || 'Cash');
+      setIsUnmarked(sale.paymentConfirmed === false || sale.isUnmarked === true);
+    }
+  }, [sale?.id, sale?.paymentMethod, sale?.paymentConfirmed, sale?.isUnmarked]);
+
   if (!sale) return null;
 
-  const lines = formatReceiptText(sale, settings || {});
+  const activeSale = {
+    ...sale,
+    paymentMethod: currentPayment,
+    paymentConfirmed: !isUnmarked,
+    isUnmarked
+  };
+
+  const lines = formatReceiptText(activeSale, settings || {});
+
+  const handleUpdateMethod = async (method) => {
+    setCurrentPayment(method);
+    setIsUnmarked(false);
+    setIsUpdatingPayment(true);
+    try {
+      if (onUpdatePayment) {
+        await onUpdatePayment(sale.id, method);
+      }
+    } finally {
+      setIsUpdatingPayment(false);
+    }
+  };
 
   const handlePrint = async () => {
     setIsPrinting(true);
     setPrintStatus(null);
     try {
-      const result = await printerService.printReceipt(sale, settings || {});
+      const result = await printerService.printReceipt(activeSale, settings || {});
       setPrintStatus({ success: true, message: result.message || 'Printed on EXEO EX58P' });
       if (onPrintConfirmed) onPrintConfirmed(result);
     } catch (err) {
@@ -37,7 +75,7 @@ export default function ThermalReceiptPreview({ sale, settings, onClose, onPrint
 
   return (
     <div className="modal-backdrop">
-      <div className="modal-window" style={{ maxWidth: '420px' }}>
+      <div className="modal-window" style={{ maxWidth: '440px' }}>
         <div className="modal-header-bar">
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
             <Printer size={18} color="var(--text-primary)" />
@@ -49,6 +87,45 @@ export default function ThermalReceiptPreview({ sale, settings, onClose, onPrint
           <button onClick={onClose} style={{ color: 'var(--text-tertiary)' }} aria-label="Close">
             <X size={20} />
           </button>
+        </div>
+
+        {/* Payment Selector Bar inside View Bill modal */}
+        <div className="receipt-modal-payment-section">
+          <div className="receipt-payment-row-left">
+            <span className="receipt-payment-section-title">Payment:</span>
+            <span className={`payment-pill-tag ${String(currentPayment || 'cash').toLowerCase()} ${isUnmarked ? 'unmarked' : ''}`}>
+              {currentPayment}
+            </span>
+            {isUnmarked && (
+              <span className="receipt-unmarked-notice-tag">Unmarked</span>
+            )}
+          </div>
+
+          <div className="receipt-payment-action-buttons">
+            <button
+              type="button"
+              className={`receipt-payment-btn cash ${currentPayment === 'Cash' && !isUnmarked ? 'active' : ''}`}
+              onClick={() => handleUpdateMethod('Cash')}
+              disabled={isUpdatingPayment}
+              title="Confirm as Cash (turns green)"
+            >
+              <Banknote size={14} />
+              <span>Cash</span>
+              {currentPayment === 'Cash' && !isUnmarked && <Check size={13} />}
+            </button>
+
+            <button
+              type="button"
+              className={`receipt-payment-btn gpay ${(currentPayment === 'GPay' || currentPayment === 'UPI') ? 'active' : ''}`}
+              onClick={() => handleUpdateMethod('GPay')}
+              disabled={isUpdatingPayment}
+              title="Change to GPay"
+            >
+              <QrCode size={14} />
+              <span>GPay</span>
+              {(currentPayment === 'GPay' || currentPayment === 'UPI') && <Check size={13} />}
+            </button>
+          </div>
         </div>
 
         <div className="modal-body-area" style={{ background: '#f4f5f7', padding: '1.25rem 0.75rem' }}>

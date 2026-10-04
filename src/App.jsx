@@ -40,7 +40,11 @@ import { getCategoryClass } from './utils/categoryUtils';
 import ThermalReceiptPreview from './components/ThermalReceiptPreview';
 import PrinterModal from './components/PrinterModal';
 import PaymentModal from './components/PaymentModal';
+import PostPrintPaymentSelector from './components/PostPrintPaymentSelector';
 import PwaInstallModal from './components/PwaInstallModal';
+import DashboardView from './components/views/DashboardView';
+import SalesView from './components/views/SalesView';
+import ReportsView from './components/views/ReportsView';
 
 export default function App() {
   // Navigation
@@ -90,6 +94,7 @@ export default function App() {
   // Modals & Popups
   const [showPrinterModal, setShowPrinterModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [postPrintSale, setPostPrintSale] = useState(null);
   const [showQuickAddModal, setShowQuickAddModal] = useState(false);
   const [viewSaleDetails, setViewSaleDetails] = useState(null);
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
@@ -412,22 +417,12 @@ export default function App() {
     }
   };
 
-  // Trigger Payment Selection Modal (Cash / UPI) before printing, or print directly if toggled off in settings
-  const handlePrintBill = () => {
+  // Print Bill immediately without waiting for payment, then show non-blocking post-print selector
+  const handlePrintBill = async () => {
     if (cartItems.length === 0) {
       alert('Add products to bill before printing.');
       return;
     }
-    if (settings.showPaymentModal === false) {
-      handleConfirmPaymentAndPrint('Cash');
-    } else {
-      setShowPaymentModal(true);
-    }
-  };
-
-  // Complete & Print Bill with selected payment method (Cash / UPI)
-  const handleConfirmPaymentAndPrint = async (paymentMethod = 'Cash') => {
-    setShowPaymentModal(false);
 
     const payload = {
       billNo,
@@ -440,26 +435,52 @@ export default function App() {
       discount: 0,
       tax: 0,
       total: grandTotal,
-      paymentMethod: paymentMethod,
+      paymentMethod: 'Cash', // Default initial payment mode
+      paymentConfirmed: false, // Unmarked until explicitly confirmed or selected
+      isUnmarked: true,
       amountReceived: grandTotal,
       change: 0,
       customerName: 'Walk-in Customer',
     };
 
+    // 1. Instantly complete & save sale in storage/Firebase
     const saved = await storageService.completeSale(payload);
 
-    // Direct background print to EXEO EX58P if ready
+    // 2. Instantly print receipt without waiting!
     if (printerService.isConnected) {
       printerService.printReceipt(saved, settings).catch(() => {});
     }
 
     setMobileCartOpen(false);
 
-    // Prepare next bill immediately
+    // 3. Immediately prepare next bill so screen is 100% active and unblocked for new orders!
     setCartItems([]);
     setParcelCount(0);
     const nextBillNo = await storageService.getNextBillNumber();
     setBillNo(nextBillNo);
+
+    // 4. Trigger non-blocking post-print payment selector
+    if (settings.showPaymentModal !== false) {
+      setPostPrintSale(saved);
+    }
+  };
+
+  // Update payment method for a bill (from post-print selector or View Bill modal)
+  const handleUpdatePostPrintPayment = async (saleId, paymentMethod) => {
+    await storageService.updateSalePayment(saleId, paymentMethod, true);
+    setSales(prev => prev.map(s => s.id === saleId ? { 
+      ...s, 
+      paymentMethod, 
+      paymentConfirmed: true, 
+      isUnmarked: false 
+    } : s));
+
+    setViewSaleDetails(prev => (prev && prev.id === saleId ? {
+      ...prev,
+      paymentMethod,
+      paymentConfirmed: true,
+      isUnmarked: false
+    } : prev));
   };
 
   // Expense Handlers (Add & Delete)
@@ -708,31 +729,41 @@ export default function App() {
                   <p>Quick and easy billing</p>
                 </div>
 
-                {lastSale && (
-                  <button 
-                    type="button" 
-                    className="last-bill-header-btn"
-                    onClick={() => setViewSaleDetails(lastSale)}
-                    title={`Click to view details for bill ${lastSale.billNo}`}
-                  >
-                    <div className="last-bill-header-left">
-                      <div className="last-bill-icon-badge">
-                        <Receipt size={16} />
+                <div className="catalog-header-right-cluster">
+                  {postPrintSale && (
+                    <PostPrintPaymentSelector 
+                      sale={postPrintSale}
+                      onClose={() => setPostPrintSale(null)}
+                      onSelectPayment={handleUpdatePostPrintPayment}
+                    />
+                  )}
+
+                  {lastSale && (
+                    <button 
+                      type="button" 
+                      className="last-bill-header-btn"
+                      onClick={() => setViewSaleDetails(lastSale)}
+                      title={`Click to view details for bill ${lastSale.billNo}`}
+                    >
+                      <div className="last-bill-header-left">
+                        <div className="last-bill-icon-badge">
+                          <Receipt size={16} />
+                        </div>
+                        <div className="last-bill-text">
+                          <span className="last-bill-heading">Last Bill</span>
+                          <span className="last-bill-meta font-mono">{lastSale.billNo}</span>
+                        </div>
                       </div>
-                      <div className="last-bill-text">
-                        <span className="last-bill-heading">Last Bill</span>
-                        <span className="last-bill-meta font-mono">{lastSale.billNo}</span>
+                      <div className="last-bill-header-right">
+                        <span className="last-bill-amount font-mono">₹{lastSale.total}</span>
+                        <span className="last-bill-view-hint">
+                          <Eye size={12} />
+                          <span>Details</span>
+                        </span>
                       </div>
-                    </div>
-                    <div className="last-bill-header-right">
-                      <span className="last-bill-amount font-mono">₹{lastSale.total}</span>
-                      <span className="last-bill-view-hint">
-                        <Eye size={12} />
-                        <span>Details</span>
-                      </span>
-                    </div>
-                  </button>
-                )}
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Search with Ctrl + K */}
@@ -1056,112 +1087,17 @@ export default function App() {
         )}
 
         {/* =========================================================================
-            TAB: DASHBOARD (Matches bottom left preview!)
+            TAB: DASHBOARD (Active Time Filter + Top 5 Best Selling Items)
            ========================================================================= */}
         {activeTab === 'dashboard' && (
-          <div className="view-container-standard">
-            <div className="view-header-row">
-              <div>
-                <h2>Dashboard</h2>
-                <p style={{ fontSize: '0.84rem', color: 'var(--text-tertiary)' }}>Welcome, weknd.official!</p>
-              </div>
-              <span className="category-filter-pill" style={{ background: '#fff', border: '1px solid var(--border-light)' }}>
-                Today ▾
-              </span>
-            </div>
-
-            {/* 8 KPI Cards */}
-            <div className="dashboard-kpi-grid">
-              <div className="kpi-stat-card">
-                <div className="kpi-title-label">Today's Sales</div>
-                <div className="kpi-figure-value green font-mono">₹{dashboardMetrics.todaySales.toLocaleString('en-IN')}</div>
-              </div>
-              <div className="kpi-stat-card">
-                <div className="kpi-title-label">Bills</div>
-                <div className="kpi-figure-value font-mono">{dashboardMetrics.billsCount}</div>
-              </div>
-              <div className="kpi-stat-card">
-                <div className="kpi-title-label">Cash</div>
-                <div className="kpi-figure-value green font-mono">₹{dashboardMetrics.cashTotal.toLocaleString('en-IN')}</div>
-              </div>
-              <div className="kpi-stat-card">
-                <div className="kpi-title-label">UPI</div>
-                <div className="kpi-figure-value green font-mono">₹{dashboardMetrics.upiTotal.toLocaleString('en-IN')}</div>
-              </div>
-              <div className="kpi-stat-card">
-                <div className="kpi-title-label">Expenses</div>
-                <div className="kpi-figure-value red font-mono">₹{dashboardMetrics.expensesTotal.toLocaleString('en-IN')}</div>
-              </div>
-              <div className="kpi-stat-card">
-                <div className="kpi-title-label">Profit</div>
-                <div className="kpi-figure-value green font-mono">₹{dashboardMetrics.profitTotal.toLocaleString('en-IN')}</div>
-              </div>
-              <div className="kpi-stat-card">
-                <div className="kpi-title-label">Credit</div>
-                <div className="kpi-figure-value red font-mono">₹{dashboardMetrics.creditTotal.toLocaleString('en-IN')}</div>
-              </div>
-              <div className="kpi-stat-card">
-                <div className="kpi-title-label">Card</div>
-                <div className="kpi-figure-value font-mono">₹{dashboardMetrics.cardTotal.toLocaleString('en-IN')}</div>
-              </div>
-            </div>
-
-            {/* Recent Bills Table */}
-            <div className="pos-table-card">
-              <div style={{ padding: '0.85rem 1.15rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-light)' }}>
-                <strong style={{ fontSize: '0.95rem' }}>Recent Bills</strong>
-                <span style={{ fontSize: '0.78rem', color: 'var(--brown-primary)', fontWeight: 700, cursor: 'pointer' }} onClick={() => setActiveTab('sales')}>
-                  View All
-                </span>
-              </div>
-              <table className="pos-table">
-                <thead>
-                  <tr>
-                    <th>Bill No</th>
-                    <th>Time</th>
-                    <th>Total</th>
-                    <th>Payment</th>
-                    <th style={{ textAlign: 'right' }}>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {dashboardMetrics.recentBills.slice(0, 5).map(b => (
-                    <tr key={b.id}>
-                      <td className="font-mono" style={{ fontWeight: 800 }}>{b.billNo}</td>
-                      <td>{b.time || '10:24 AM'}</td>
-                      <td className="font-mono" style={{ fontWeight: 800 }}>₹{b.total}</td>
-                      <td><span className="category-filter-pill" style={{ padding: '0.2rem 0.6rem', fontSize: '0.75rem' }}>{b.paymentMethod || 'Cash'}</span></td>
-                      <td style={{ textAlign: 'right' }}>
-                        <div style={{ display: 'inline-flex', gap: '0.35rem', alignItems: 'center' }}>
-                          <button 
-                            className="btn-hold-bill-outline"
-                            onClick={() => setViewSaleDetails(b)}
-                            style={{ padding: '0.25rem 0.55rem', fontSize: '0.75rem' }}
-                            title="View Invoice"
-                          >
-                            <Eye size={12} />
-                            <span>View</span>
-                          </button>
-                          <button 
-                            className="entry-del-btn"
-                            onClick={async () => {
-                              if (window.confirm(`Delete invoice ${b.billNo} (₹${b.total})? This cannot be undone.`)) {
-                                await handleDeleteInvoice(b.id);
-                              }
-                            }}
-                            style={{ padding: '0.25rem', color: 'var(--red-accent)' }}
-                            title="Delete Invoice"
-                          >
-                            <Trash2 size={15} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <DashboardView
+            sales={sales}
+            expenses={expenses}
+            settings={settings}
+            onViewSale={(sale) => setViewSaleDetails(sale)}
+            onDeleteSale={handleDeleteInvoice}
+            onNavigate={(tab) => setActiveTab(tab)}
+          />
         )}
 
         {/* =========================================================================
@@ -1254,128 +1190,22 @@ export default function App() {
             TAB: SALES (Matches bottom third preview!)
            ========================================================================= */}
         {activeTab === 'sales' && (
-          <div className="view-container-standard">
-            <div className="view-header-row">
-              <h2>Sales</h2>
-              <span className="category-filter-pill" style={{ background: '#fff', border: '1px solid var(--border-light)' }}>
-                Today ▾
-              </span>
-            </div>
-
-            <div className="pos-table-card">
-              <table className="pos-table">
-                <thead>
-                  <tr>
-                    <th>Bill No</th>
-                    <th>Date & Time</th>
-                    <th>Total</th>
-                    <th>Payment</th>
-                    <th style={{ textAlign: 'right' }}>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sales.map(s => (
-                    <tr key={s.id}>
-                      <td className="font-mono" style={{ fontWeight: 800 }}>{s.billNo}</td>
-                      <td style={{ fontSize: '0.82rem' }}>{s.date}, {s.time || ''}</td>
-                      <td className="font-mono" style={{ fontWeight: 800 }}>₹{s.total}</td>
-                      <td><span className="category-filter-pill" style={{ padding: '0.2rem 0.6rem', fontSize: '0.75rem' }}>{s.paymentMethod || 'Cash'}</span></td>
-                      <td style={{ textAlign: 'right' }}>
-                        <div style={{ display: 'inline-flex', gap: '0.4rem', alignItems: 'center' }}>
-                          <button 
-                            className="btn-hold-bill-outline"
-                            onClick={() => setViewSaleDetails(s)}
-                            style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem' }}
-                            title="View Invoice"
-                          >
-                            <Eye size={12} />
-                            <span>View</span>
-                          </button>
-                          <button 
-                            className="entry-del-btn"
-                            onClick={async () => {
-                              if (window.confirm(`Delete invoice ${s.billNo} (₹${s.total})? This cannot be undone.`)) {
-                                await handleDeleteInvoice(s.id);
-                              }
-                            }}
-                            style={{ padding: '0.25rem', color: 'var(--red-accent)' }}
-                            title="Delete Invoice"
-                          >
-                            <Trash2 size={15} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <SalesView 
+            sales={sales}
+            onViewSale={setViewSaleDetails}
+            onDeleteSale={handleDeleteInvoice}
+          />
         )}
 
         {/* =========================================================================
-            TAB: REPORTS (Matches bottom right preview!)
+            TAB: REPORTS (Export PDF, Excel, CSV, Period Filtering)
            ========================================================================= */}
         {activeTab === 'reports' && (
-          <div className="view-container-standard">
-            <div className="view-header-row">
-              <h2>Reports</h2>
-              <span className="category-filter-pill" style={{ background: '#fff', border: '1px solid var(--border-light)' }}>
-                This Month ▾
-              </span>
-            </div>
-
-            <div className="dashboard-kpi-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
-              <div className="kpi-stat-card">
-                <div className="kpi-title-label">Total Sales</div>
-                <div className="kpi-figure-value green font-mono">
-                  ₹{sales.reduce((sum, s) => sum + (Number(s.total) || 0), 0).toLocaleString('en-IN')}
-                </div>
-              </div>
-              <div className="kpi-stat-card">
-                <div className="kpi-title-label">Total Bills</div>
-                <div className="kpi-figure-value font-mono">{sales.length}</div>
-              </div>
-              <div className="kpi-stat-card">
-                <div className="kpi-title-label">Cash Sales</div>
-                <div className="kpi-figure-value green font-mono">
-                  ₹{sales.filter(s => (s.paymentMethod || '').toLowerCase().includes('cash')).reduce((sum, s) => sum + (Number(s.total) || 0), 0).toLocaleString('en-IN')}
-                </div>
-              </div>
-              <div className="kpi-stat-card">
-                <div className="kpi-title-label">UPI / Online</div>
-                <div className="kpi-figure-value green font-mono">
-                  ₹{sales.filter(s => (s.paymentMethod || '').toLowerCase().includes('upi')).reduce((sum, s) => sum + (Number(s.total) || 0), 0).toLocaleString('en-IN')}
-                </div>
-              </div>
-            </div>
-
-            <div className="pos-table-card" style={{ padding: '1.25rem' }}>
-              <strong style={{ fontSize: '0.9rem', color: 'var(--text-primary)' }}>Recent Bills Breakdown</strong>
-              {sales.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '2.5rem 1rem', color: 'var(--text-tertiary)', fontSize: '0.85rem' }}>
-                  No sales recorded yet. Completed orders will appear here automatically.
-                </div>
-              ) : (
-                <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-                  {sales.slice(0, 10).map((s) => {
-                    const maxVal = Math.max(...sales.slice(0, 10).map(x => Number(x.total) || 1));
-                    const pct = Math.max(12, Math.min(100, Math.round(((Number(s.total) || 0) / maxVal) * 100)));
-                    return (
-                      <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.82rem' }}>
-                        <span className="font-mono" style={{ width: '70px', fontWeight: 700 }}>{s.billNo}</span>
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', width: '80px' }}>{s.time || ''}</span>
-                        <div style={{ flex: 1, background: '#f1f5f9', height: '20px', borderRadius: '6px', overflow: 'hidden' }}>
-                          <div style={{ width: `${pct}%`, height: '100%', background: 'var(--accent-green)', borderRadius: '6px', transition: 'width 0.3s ease' }} />
-                        </div>
-                        <span className="font-mono" style={{ width: '65px', textAlign: 'right', fontWeight: 800 }}>₹{s.total}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
+          <ReportsView 
+            sales={sales}
+            expenses={expenses}
+            settings={settings}
+          />
         )}
 
         {/* =========================================================================
@@ -1676,10 +1506,10 @@ export default function App() {
                   </div>
                   <div>
                     <strong style={{ fontSize: '1rem', display: 'block', color: 'var(--text-primary)' }}>
-                      Payment Selection Screen (Cash / GPay)
+                      Post-Print Payment Prompt
                     </strong>
                     <p style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', margin: '0.15rem 0 0' }}>
-                      Ask payment option before printing. Turn OFF for 1-click instant direct print.
+                      After printing, shows a quick floating form to select payment method without blocking the screen or halting new bills.
                     </p>
                   </div>
                 </div>
@@ -1714,8 +1544,8 @@ export default function App() {
                 </span>
                 <span>
                   {settings.showPaymentModal !== false 
-                    ? 'Clicking "Print Bill" opens Cash or UPI/GPay selection popup before printing.' 
-                    : 'Clicking "Print Bill" prints immediately (defaults to Cash) without asking for payment selection.'}
+                    ? 'Bill prints immediately without waiting. Quick floating card asks for Cash/UPI/Card without blocking screen.' 
+                    : '1-click direct print with default Cash without showing post-print payment selector.'}
                 </span>
               </div>
             </div>
@@ -1882,16 +1712,6 @@ export default function App() {
         </div>
       )}
 
-      {/* Cash / UPI Payment Selection Modal */}
-      <PaymentModal 
-        isOpen={showPaymentModal}
-        onClose={() => setShowPaymentModal(false)}
-        onSelectPayment={handleConfirmPaymentAndPrint}
-        total={grandTotal}
-        billNo={billNo}
-        itemsCount={cartItems.reduce((acc, i) => acc + i.qty, 0)}
-      />
-
 
 
       {/* Sale Details Modal */}
@@ -1901,6 +1721,7 @@ export default function App() {
           settings={settings}
           onClose={() => setViewSaleDetails(null)}
           onDelete={handleDeleteInvoice}
+          onUpdatePayment={handleUpdatePostPrintPayment}
         />
       )}
 
