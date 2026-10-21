@@ -31,7 +31,8 @@ import {
   Download,
   Smartphone,
   Tablet,
-  Monitor
+  Monitor,
+  Pencil
 } from 'lucide-react';
 import { storageService } from './services/storageService';
 import { printerService } from './services/printerService';
@@ -42,6 +43,7 @@ import PrinterModal from './components/PrinterModal';
 import PaymentModal from './components/PaymentModal';
 import PostPrintPaymentSelector from './components/PostPrintPaymentSelector';
 import PwaInstallModal from './components/PwaInstallModal';
+import EditProductModal from './components/EditProductModal';
 import DashboardView from './components/views/DashboardView';
 import SalesView from './components/views/SalesView';
 import ReportsView from './components/views/ReportsView';
@@ -96,6 +98,7 @@ export default function App() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [postPrintSale, setPostPrintSale] = useState(null);
   const [showQuickAddModal, setShowQuickAddModal] = useState(false);
+  const [editingProduct, setEditingProduct] = useState(null);
   const [viewSaleDetails, setViewSaleDetails] = useState(null);
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -414,6 +417,34 @@ export default function App() {
       setCartItems(heldBill.items || []);
       setParcelCount(heldBill.parcelCount || 0);
       setHeldBill(null);
+    }
+  };
+
+  // Edit Master Product (Name, Price, Category)
+  const handleSaveEditProduct = async (updatedProduct) => {
+    // 1. Optimistically update local products state
+    setProducts(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
+
+    // 2. Also update matching item in active cart if present
+    setCartItems(prev => prev.map(item => {
+      if (item.productId === updatedProduct.id) {
+        return {
+          ...item,
+          name: updatedProduct.name,
+          sellingPrice: updatedProduct.sellingPrice,
+          amount: item.qty * updatedProduct.sellingPrice
+        };
+      }
+      return item;
+    }));
+
+    // 3. Save to Firebase via storageService
+    try {
+      await storageService.saveProduct(updatedProduct);
+      const freshCats = await storageService.getCategories();
+      if (freshCats) setCategories(freshCats);
+    } catch (err) {
+      console.warn('[Billex] Cloud save product warning:', err);
     }
   };
 
@@ -1159,24 +1190,36 @@ export default function App() {
                   {products
                     .filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()) || (p.category && p.category.toLowerCase().includes(searchTerm.toLowerCase())))
                     .map(p => (
-                    <tr key={p.id}>
+                    <tr key={p.id} onDoubleClick={() => setEditingProduct(p)} style={{ cursor: 'pointer' }} title="Double-click to edit">
                       <td style={{ fontWeight: 700 }}>{p.name}</td>
                       <td><span className={`card-prod-cat-badge ${getCategoryClass(p.category)}`}>{p.category}</span></td>
                       <td className="font-mono" style={{ fontWeight: 800 }}>₹{p.sellingPrice}</td>
                       <td><span className="status-tag-active">Active</span></td>
-                      <td style={{ textAlign: 'right' }}>
-                        <button 
-                          className="entry-del-btn" 
-                          onClick={async () => {
-                            if (window.confirm(`Delete ${p.name}?`)) {
-                              await storageService.deleteProduct(p.id);
-                              setProducts(prev => prev.filter(x => x.id !== p.id));
-                            }
-                          }}
-                          title="Delete Product"
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                      <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', justifyContent: 'flex-end' }}>
+                          <button 
+                            type="button"
+                            className="entry-edit-action-btn"
+                            onClick={() => setEditingProduct(p)}
+                            title={`Edit ${p.name} (Name & Price)`}
+                          >
+                            <Pencil size={13} />
+                            <span>Edit</span>
+                          </button>
+                          <button 
+                            type="button"
+                            className="entry-del-btn" 
+                            onClick={async () => {
+                              if (window.confirm(`Delete ${p.name}?`)) {
+                                await storageService.deleteProduct(p.id);
+                                setProducts(prev => prev.filter(x => x.id !== p.id));
+                              }
+                            }}
+                            title="Delete Product"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -1737,6 +1780,15 @@ export default function App() {
         onInstallDirect={handleTriggerInstall}
         isInstallable={isInstallable}
         isStandalone={isStandalone}
+      />
+
+      {/* Edit Master Product Modal (Name, Price & Category) */}
+      <EditProductModal 
+        isOpen={Boolean(editingProduct)}
+        product={editingProduct}
+        categories={categories}
+        onClose={() => setEditingProduct(null)}
+        onSave={handleSaveEditProduct}
       />
     </div>
   );
