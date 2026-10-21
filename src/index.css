@@ -2147,6 +2147,7 @@ input, select, textarea {
 .kpi-stat-card.accent-amber::before { background: #f59e0b; }
 .kpi-stat-card.accent-red::before { background: #ea580c; }
 .kpi-stat-card.accent-violet::before { background: #8b5cf6; }
+.kpi-stat-card.accent-orange::before { background: #f97316; }
 
 .kpi-stat-card:hover {
   border-color: #cbd5e1;
@@ -2187,6 +2188,7 @@ input, select, textarea {
 .kpi-icon-pill.rose { background: #fff1f2; color: #e11d48; border: 1px solid #fecdd3; }
 .kpi-icon-pill.amber { background: #fffbeb; color: #d97706; border: 1px solid #fde68a; }
 .kpi-icon-pill.red { background: #fff7ed; color: #ea580c; border: 1px solid #fed7aa; }
+.kpi-icon-pill.orange { background: #fff7ed; color: #ea580c; border: 1px solid #fed7aa; }
 .kpi-icon-pill.violet { background: #f5f3ff; color: #7c3aed; border: 1px solid #ddd6fe; }
 
 .kpi-figure-value {
@@ -2256,6 +2258,7 @@ input, select, textarea {
 
 .header-icon-box.amber { background: #fef3c7; color: #d97706; }
 .header-icon-box.emerald { background: #d1fae5; color: #059669; }
+.header-icon-box.orange { background: #ffedd5; color: #ea580c; }
 
 .widget-header-badge {
   font-size: 0.72rem;
@@ -2270,6 +2273,139 @@ input, select, textarea {
   background: #ecfdf5;
   color: #059669;
   border: 1px solid #a7f3d0;
+}
+
+.widget-header-badge.orange {
+  background: #fff7ed;
+  color: #ea580c;
+  border: 1px solid #fed7aa;
+}
+
+/* Dashboard Parcel Hero & Ratio Bar */
+.parcel-dashboard-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.2rem 0 0.85rem;
+  flex-wrap: wrap;
+}
+
+.parcel-hero-main {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+}
+
+.parcel-hero-num {
+  font-size: 2.3rem;
+  font-weight: 800;
+  color: #ea580c;
+  line-height: 1;
+}
+
+.parcel-hero-meta {
+  display: flex;
+  flex-direction: column;
+}
+
+.parcel-hero-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.parcel-hero-sub {
+  font-size: 0.74rem;
+  color: var(--text-tertiary);
+  margin-top: 0.15rem;
+}
+
+.parcel-hero-badges {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.parcel-stat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 0.25rem 0.6rem;
+  border-radius: var(--radius-full);
+}
+
+.parcel-stat-pill.takeaway {
+  background: #fff7ed;
+  color: #ea580c;
+  border: 1px solid #fed7aa;
+}
+
+.parcel-stat-pill.dine-in {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+}
+
+.parcel-ratio-bar-wrap {
+  margin: 0.35rem 0 0.95rem;
+}
+
+.parcel-ratio-bar {
+  display: flex;
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: #f1f3f6;
+  gap: 2px;
+}
+
+.parcel-ratio-seg {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.parcel-ratio-seg.parcel {
+  background: #f97316;
+}
+
+.parcel-ratio-seg.dinein {
+  background: #94a3b8;
+}
+
+.parcel-ratio-seg.empty {
+  background: #e2e8f0;
+}
+
+.parcel-ratio-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.35rem;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.ratio-label-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.ratio-label-text .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.ratio-label-text .dot.parcel {
+  background: #f97316;
+}
+
+.ratio-label-text .dot.dinein {
+  background: #94a3b8;
 }
 
 /* Top Selling Items (Clean, Compact, Ranked) */
@@ -3899,4 +4035,858 @@ input, select, textarea {
   .cart-items-scrollarea {
     max-height: 220px;
   }
+}
+
+/* ==========================================================================
+   PRODUCT SALES & PERFORMANCE MODAL (Sales by Product View All)
+   ========================================================================== */
+.dashboard-view-all-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #b45309;
+  background: #fef3c7;
+  border: 1px solid #fde68a;
+  cursor: pointer;
+  padding: 0.2rem 0.6rem;
+  border-radius: var(--radius-full);
+  transition: all 0.15s ease;
+}
+
+.dashboard-view-all-btn:hover {
+  background: #fde68a;
+  color: #92400e;
+  transform: translateY(-1px);
+}
+
+.top-items-footer-action {
+  margin-top: 0.75rem;
+  padding-top: 0.65rem;
+  border-top: 1px dashed var(--border-light);
+  display: flex;
+  justify-content: center;
+}
+
+.top-items-footer-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--brown-primary);
+  background: var(--bg-pill);
+  border: 1px solid var(--border-light);
+  cursor: pointer;
+  padding: 0.4rem 0.85rem;
+  border-radius: var(--radius-sm);
+  width: 100%;
+  transition: all 0.15s ease;
+}
+
+.top-items-footer-btn:hover {
+  background: var(--bg-pill-hover);
+  color: var(--brown-dark);
+}
+
+/* Product Sales Modal Window */
+.product-sales-modal-window {
+  max-width: 980px !important;
+  width: 95% !important;
+  max-height: 90vh !important;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 25px 60px rgba(15, 23, 42, 0.22);
+  border: 1px solid #e2e8f0;
+}
+
+.product-sales-modal-header {
+  padding: 1rem 1.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-light);
+  background: #fafafb;
+  flex-shrink: 0;
+}
+
+.product-sales-header-title-box {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.product-sales-period-tag {
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 0.18rem 0.6rem;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+
+.product-sales-bills-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.18rem 0.5rem;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+
+.product-sales-subtitle {
+  font-size: 0.78rem;
+  color: var(--text-tertiary);
+  margin: 0.2rem 0 0 0;
+}
+
+.export-csv-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.76rem;
+  font-weight: 700;
+  padding: 0.38rem 0.75rem;
+  border-radius: var(--radius-sm);
+  background: #ffffff;
+  border: 1px solid var(--border-light);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.export-csv-btn:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.product-sales-modal-body {
+  padding: 1.25rem 1.4rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  background: #f8fafc;
+  flex: 1;
+}
+
+/* 1. Date Selection Card & Stepper */
+.product-sales-filter-card {
+  background: #ffffff;
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.product-sales-time-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.product-sales-stepper-box {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: #f8fafc;
+  padding: 0.3rem 0.55rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-light);
+}
+
+.stepper-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin-right: 0.25rem;
+}
+
+.stepper-arrow-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: #ffffff;
+  border: 1px solid var(--border-light);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.stepper-arrow-btn:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.product-sales-date-input {
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-light);
+  background: #ffffff;
+  color: var(--text-primary);
+  outline: none;
+  cursor: pointer;
+}
+
+.product-sales-date-input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+}
+
+.stepper-today-jump-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.25rem 0.55rem;
+  border-radius: 6px;
+  background: #eef2ff;
+  color: #4f46e5;
+  border: 1px solid #c7d2fe;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.stepper-today-jump-btn:hover {
+  background: #e0e7ff;
+}
+
+/* 2. KPI Cards Ribbon */
+.product-sales-kpis-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+}
+
+.ps-kpi-card {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border-light);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.ps-kpi-icon-pill {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ps-kpi-icon-pill.blue { background: #eff6ff; color: #2563eb; }
+.ps-kpi-icon-pill.green { background: #ecfdf5; color: #059669; }
+.ps-kpi-icon-pill.purple { background: #faf5ff; color: #9333ea; }
+.ps-kpi-icon-pill.amber { background: #fef3c7; color: #d97706; }
+
+.ps-kpi-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.ps-kpi-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.ps-kpi-value {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-top: 0.1rem;
+}
+
+.ps-kpi-value.green {
+  color: #059669;
+}
+
+.ps-kpi-unit {
+  font-size: 0.74rem;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  margin-left: 0.3rem;
+}
+
+.ps-kpi-value-top-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.15rem;
+  overflow: hidden;
+}
+
+.top-name {
+  font-size: 0.86rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 130px;
+}
+
+.top-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #b45309;
+  border: 1px solid #fde68a;
+  flex-shrink: 0;
+}
+
+/* 3. Search & Category Controls */
+.product-sales-controls-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.ps-search-input-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: 0.4rem 0.75rem;
+  flex: 1;
+  min-width: 240px;
+  gap: 0.5rem;
+}
+
+.ps-search-input {
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 0.84rem;
+  width: 100%;
+  color: var(--text-primary);
+}
+
+.ps-clear-search-btn {
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  padding: 0.1rem;
+  display: flex;
+}
+
+.ps-clear-search-btn:hover {
+  color: var(--text-primary);
+}
+
+.ps-filter-dropdown-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ps-select-input {
+  padding: 0.42rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-light);
+  background: #ffffff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  outline: none;
+  cursor: pointer;
+}
+
+.ps-select-input:focus {
+  border-color: #3b82f6;
+}
+
+/* 4. Products Table */
+.product-sales-table-card {
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid var(--border-light);
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.product-sales-table-responsive {
+  max-height: 400px;
+  overflow-y: auto;
+  overflow-x: auto;
+}
+
+.product-sales-table th {
+  position: sticky;
+  top: 0;
+  background: #f8fafc;
+  z-index: 5;
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text-secondary);
+  padding: 0.7rem 0.9rem;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.product-sales-row:hover {
+  background: #f9fafb;
+}
+
+.ps-item-title-box {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ps-item-name {
+  font-weight: 700;
+  font-size: 0.86rem;
+  color: var(--text-primary);
+}
+
+.ps-item-category-pill {
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 0.12rem 0.45rem;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+
+.ps-qty-column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 140px;
+}
+
+.ps-qty-num {
+  font-size: 0.86rem;
+  color: var(--text-primary);
+}
+
+.ps-qty-sublabel {
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+  margin-left: 0.3rem;
+  font-weight: normal;
+}
+
+.ps-price-text {
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.ps-orders-pill {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+
+.ps-revenue-text {
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: #059669;
+}
+
+.ps-share-badge {
+  font-size: 0.76rem;
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+  border-radius: 6px;
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+}
+
+.product-sales-modal-footer {
+  padding: 0.85rem 1.4rem;
+  border-top: 1px solid var(--border-light);
+  background: #fafafb;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+  .product-sales-kpis-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .product-sales-time-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .product-sales-stepper-box {
+    justify-content: center;
+  }
+  .product-sales-controls-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+/* ==========================================================================
+   PRODUCT SALES PAGE VIEW (Full Page Layout & Zero Sales Controls)
+   ========================================================================== */
+.product-sales-page-view {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+  padding-bottom: 2rem;
+}
+
+.product-sales-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.product-sales-page-title-cluster {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  flex-wrap: wrap;
+}
+
+.product-sales-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  background: #ffffff;
+  border: 1px solid var(--border-light);
+  padding: 0.42rem 0.75rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.product-sales-back-btn:hover {
+  background: var(--bg-pill);
+  color: var(--brown-primary);
+  border-color: #cbd5e1;
+  transform: translateX(-2px);
+}
+
+/* ZERO SALES TICK BOX */
+.ps-zero-sales-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0.42rem 0.8rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-light);
+  background: #ffffff;
+  color: var(--text-primary);
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.15s ease;
+}
+
+.ps-zero-sales-toggle:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.ps-zero-sales-toggle.active-hide {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: var(--text-secondary);
+}
+
+.ps-zero-sales-toggle.active-show {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+  color: #065f46;
+}
+
+.ps-checkbox-native {
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+  accent-color: var(--brown-primary);
+}
+
+.ps-checkbox-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: inherit;
+}
+
+.ps-checkbox-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+}
+
+.ps-count-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+
+.ps-count-badge.green {
+  background: #d1fae5;
+  color: #065f46;
+  border-color: #a7f3d0;
+}
+
+/* Zero sales row display */
+.product-sales-row.zero-sales-row {
+  background: #fafafc;
+}
+
+.product-sales-row.zero-sales-row:hover {
+  background: #f4f5f8;
+}
+
+.ps-item-name.muted {
+  color: #64748b;
+  font-weight: 600;
+}
+
+.ps-zero-tag {
+  font-size: 0.64rem;
+  font-weight: 700;
+  padding: 0.08rem 0.38rem;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #94a3b8;
+  border: 1px solid #e2e8f0;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.rank-pill-badge.rank-zero {
+  background: #f8fafc;
+  color: #94a3b8;
+  border: 1px dashed #cbd5e1;
+  font-size: 0.74rem;
+}
+
+.ps-qty-num.zero,
+.ps-orders-pill.zero,
+.ps-revenue-text.zero,
+.ps-share-badge.zero {
+  color: #94a3b8 !important;
+}
+
+.ps-orders-pill.zero {
+  background: #f8fafc;
+  border-color: #f1f5f9;
+}
+
+.ps-share-badge.zero {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+/* Product Sales Table Footer */
+.product-sales-table-footer {
+  padding: 0.85rem 1.25rem;
+  background: #fafafb;
+  border-top: 1px solid var(--border-light);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+/* ==========================================================================
+   OPEN FOOD SEPARATED STATS & CONTROLS (Dashboard & Sales by Product)
+   ========================================================================== */
+.header-icon-box.purple {
+  background: #faf5ff;
+  color: #9333ea;
+}
+
+.dashboard-open-food-box {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed var(--border-light);
+}
+
+.dashboard-open-food-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.65rem;
+}
+
+.dashboard-open-food-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+}
+
+.of-stat-card {
+  background: #f8fafc;
+  border-radius: 9px;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--border-light);
+  display: flex;
+  flex-direction: column;
+}
+
+.of-stat-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.of-stat-value {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1.2;
+  margin: 0.15rem 0;
+}
+
+.of-stat-value.purple {
+  color: #9333ea;
+}
+
+.of-stat-unit {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  margin-left: 0.2rem;
+}
+
+.of-stat-note {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+/* Sales by Product Type Segmented Tabs (All | Catalog Menu | Open Food Only) */
+.ps-type-filter-segmented {
+  display: inline-flex;
+  background: #f1f5f9;
+  padding: 2px;
+  border-radius: 8px;
+  border: 1px solid var(--border-light);
+}
+
+.ps-type-btn {
+  border: none;
+  background: transparent;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.ps-type-btn:hover {
+  color: var(--text-primary);
+}
+
+.ps-type-btn.active {
+  background: #ffffff;
+  color: var(--text-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.ps-type-badge {
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 0.08rem 0.4rem;
+  border-radius: 999px;
+  background: var(--bg-pill);
+  color: var(--text-secondary);
+}
+
+.ps-type-btn.active .ps-type-badge {
+  background: #eef2ff;
+  color: #4f46e5;
+}
+
+.ps-type-btn.active.open-food .ps-type-badge {
+  background: #faf5ff;
+  color: #9333ea;
+}
+
+.ps-open-food-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: #faf5ff;
+  color: #9333ea;
+  border: 1px solid #e9d5ff;
+}
+
+.ps-open-food-ribbon-card {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border-light);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.ps-open-food-ribbon-card.accent-purple {
+  border-top: 3px solid #9333ea;
 }

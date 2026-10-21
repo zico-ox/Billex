@@ -32,7 +32,8 @@ import {
   Smartphone,
   Tablet,
   Monitor,
-  Pencil
+  Pencil,
+  ShoppingBag
 } from 'lucide-react';
 import { storageService } from './services/storageService';
 import { printerService } from './services/printerService';
@@ -47,6 +48,7 @@ import EditProductModal from './components/EditProductModal';
 import DashboardView from './components/views/DashboardView';
 import SalesView from './components/views/SalesView';
 import ReportsView from './components/views/ReportsView';
+import ProductSalesView from './components/views/ProductSalesView';
 
 export default function App() {
   // Navigation
@@ -354,10 +356,13 @@ export default function App() {
             : item
         );
       }
+      const isOpen = Boolean(product.isOpenFood || (product.id && String(product.id).startsWith('open_')) || product.category === 'Open Food');
       return [...prev, {
         productId: product.id,
         name: product.name,
         sellingPrice: product.sellingPrice,
+        category: product.category || (isOpen ? 'Open Food' : 'General'),
+        isOpenFood: isOpen,
         qty: 1,
         amount: product.sellingPrice,
       }];
@@ -685,6 +690,14 @@ export default function App() {
           >
             <TrendingUp size={18} />
             <span>Sales</span>
+          </button>
+
+          <button 
+            className={`nav-link-btn ${activeTab === 'product-sales' ? 'active' : ''}`}
+            onClick={() => selectTab('product-sales')}
+          >
+            <ShoppingBag size={18} />
+            <span>Sales by Product</span>
           </button>
 
           <button 
@@ -1127,6 +1140,19 @@ export default function App() {
             settings={settings}
             onViewSale={(sale) => setViewSaleDetails(sale)}
             onDeleteSale={handleDeleteInvoice}
+            onNavigate={(tab) => setActiveTab(tab)}
+          />
+        )}
+
+        {/* =========================================================================
+            TAB: PRODUCT SALES (Full Page View: All Sales by Product & Zero Sales)
+           ========================================================================= */}
+        {activeTab === 'product-sales' && (
+          <ProductSalesView
+            sales={sales}
+            products={products}
+            settings={settings}
+            onBack={() => setActiveTab('dashboard')}
             onNavigate={(tab) => setActiveTab(tab)}
           />
         )}
