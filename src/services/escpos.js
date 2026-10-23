@@ -30,7 +30,8 @@ export function cleanText(str = '') {
 
 export function cleanAscii(str = '') {
   return String(str || '')
-    .replace(/[^\x20-\x7E\n₹]/g, ' ');
+    .replace(/₹/g, 'Rs.')
+    .replace(/[^\x20-\x7E\n]/g, ' ');
 }
 
 export function padCenter(text, width = LINE_WIDTH) {
@@ -72,13 +73,13 @@ export function threeColumn(col1, col2, col3, w1 = 20, w2 = 3, w3 = 9) {
 export function formatItemLines(name, rate, qty, amount) {
   const cleanN = cleanText(name);
   const rateQty = `${rate}x${qty}`;
-  const amtStr = `₹${amount}`;
+  const amtStr = String(amount);
 
   const wRateQty = 6;
   const wAmt = 6;
   const wName = LINE_WIDTH - wRateQty - wAmt; // 20 chars
 
-  // Fits on a single 32-column line (e.g. Classic Chicken Roll  79x5  ₹395)
+  // Fits on a single 32-column line (e.g. Classic Chicken Roll  79x5   395)
   if (cleanN.length <= wName) {
     return [padRight(cleanN, wName) + padLeft(rateQty, wRateQty) + padLeft(amtStr, wAmt)];
   }
@@ -173,14 +174,14 @@ export function formatReceiptText(sale, settings = {}) {
   // Parcel Fee (if present)
   if (sale.parcelFee && Number(sale.parcelFee) > 0) {
     const pCount = sale.parcelCount || Math.round(Number(sale.parcelFee) / 5);
-    lines.push(twoColumn(`Parcel Fee (${pCount})`, `₹${Number(sale.parcelFee).toFixed(0)}`, LINE_WIDTH));
+    lines.push(twoColumn(`Parcel Fee (${pCount})`, `Rs.${Number(sale.parcelFee).toFixed(0)}`, LINE_WIDTH));
   }
 
   // Divider before TOTAL
   lines.push(divider);
 
   // TOTAL
-  lines.push(twoColumn('TOTAL', `₹${Number(sale.total).toFixed(0)}`, LINE_WIDTH));
+  lines.push(twoColumn('TOTAL', `Rs. ${Number(sale.total).toFixed(0)}`, LINE_WIDTH));
 
   // Divider after TOTAL
   lines.push(divider);
@@ -249,7 +250,7 @@ export function generateReceiptEscPosBytes(sale, settings = {}) {
   // Parcel Fee (if present)
   if (sale.parcelFee && Number(sale.parcelFee) > 0) {
     const pCount = sale.parcelCount || Math.round(Number(sale.parcelFee) / 5);
-    appendLine(twoColumn(`Parcel Fee (${pCount})`, `₹${Number(sale.parcelFee).toFixed(0)}`));
+    appendLine(twoColumn(`Parcel Fee (${pCount})`, `Rs.${Number(sale.parcelFee).toFixed(0)}`));
   }
 
   // Divider before TOTAL
@@ -258,7 +259,7 @@ export function generateReceiptEscPosBytes(sale, settings = {}) {
   // TOTAL (Bigger & Bold)
   append(COMMANDS.BOLD_ON);
   append(COMMANDS.DOUBLE_HEIGHT);
-  appendLine(twoColumn('TOTAL', `₹${Number(sale.total).toFixed(0)}`));
+  appendLine(twoColumn('TOTAL', `Rs. ${Number(sale.total).toFixed(0)}`));
   append(COMMANDS.NORMAL_SIZE);
   append(COMMANDS.BOLD_OFF);
 
