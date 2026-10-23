@@ -163,7 +163,7 @@ export default function ThermalReceiptPreview({
               else if (isTotal) lineClass += ' receipt-line-total';
               else if (isFooter) lineClass += ' receipt-line-footer';
 
-              const displayLine = (line || ' ').replace(/Rs\./g, '₹');
+              const displayLine = line || ' ';
 
               return (
                 <div key={idx} className={lineClass}>

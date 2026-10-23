@@ -30,9 +30,7 @@ export function cleanText(str = '') {
 
 export function cleanAscii(str = '') {
   return String(str || '')
-    .replace(/₹/g, 'Rs.')
-    .replace(/[^\x20-\x7E\n]/g, ' ')
-    .trim();
+    .replace(/[^\x20-\x7E\n₹]/g, ' ');
 }
 
 export function padCenter(text, width = LINE_WIDTH) {
@@ -45,7 +43,7 @@ export function padCenter(text, width = LINE_WIDTH) {
 
 export function padLeft(text, width) {
   const clean = cleanText(text);
-  if (clean.length >= width) return clean.slice(0, width);
+  if (clean.length >= width) return clean;
   return ' '.repeat(width - clean.length) + clean;
 }
 
@@ -64,11 +62,40 @@ export function twoColumn(left, right, width = LINE_WIDTH) {
   return cleanLeft.slice(0, avail) + ' ' + cleanRight;
 }
 
-export function threeColumn(col1, col2, col3, w1 = 17, w2 = 4, w3 = 11) {
+export function threeColumn(col1, col2, col3, w1 = 20, w2 = 3, w3 = 9) {
   const c1 = padRight(col1, w1);
   const c2 = padLeft(col2, w2);
   const c3 = padLeft(col3, w3);
   return c1 + c2 + c3;
+}
+
+export function formatItemLines(name, rate, qty, amount) {
+  const cleanN = cleanText(name);
+  const rateQty = `${rate}x${qty}`;
+  const amtStr = `₹${amount}`;
+
+  const wRateQty = 6;
+  const wAmt = 6;
+  const wName = LINE_WIDTH - wRateQty - wAmt; // 20 chars
+
+  // Fits on a single 32-column line (e.g. Classic Chicken Roll  79x5  ₹395)
+  if (cleanN.length <= wName) {
+    return [padRight(cleanN, wName) + padLeft(rateQty, wRateQty) + padLeft(amtStr, wAmt)];
+  }
+
+  // If larger than wName (20 characters), break into two lines:
+  let splitIndex = cleanN.lastIndexOf(' ', wName);
+  if (splitIndex < 6) {
+    splitIndex = wName;
+  }
+
+  const line1Name = cleanN.slice(0, splitIndex).trim();
+  const line2Name = cleanN.slice(splitIndex).trim();
+
+  const line1 = padRight(line1Name, wName) + padLeft(rateQty, wRateQty) + padLeft(amtStr, wAmt);
+  const line2 = '  ' + line2Name.slice(0, LINE_WIDTH - 2);
+
+  return [line1, line2];
 }
 
 export function cleanBillNo(str = '') {
@@ -122,8 +149,10 @@ export function formatReceiptText(sale, settings = {}) {
   if (subTitle) lines.push(padCenter(subTitle));
   lines.push('');
 
-  // Bill No and Date/Time (e.g. WK0145 | 01/10/26 09:53 PM)
-  const billLine = `${cleanBillNo(sale.billNo)} | ${formatReceiptDateTime(sale)}`;
+  // Bill No and Date/Time (e.g. WK0145         01/10/26 09:53 PM)
+  const billNo = cleanBillNo(sale.billNo);
+  const dateTime = formatReceiptDateTime(sale);
+  const billLine = twoColumn(billNo, dateTime, LINE_WIDTH);
   lines.push(billLine);
 
   // Table Divider
@@ -134,14 +163,11 @@ export function formatReceiptText(sale, settings = {}) {
   items.forEach(item => {
     const name = item.name || 'Item';
     const qty = String(item.qty || 1);
-    const amount = `₹${Number(item.amount || (item.sellingPrice * item.qty)).toFixed(0)}`;
+    const unitPrice = Number(item.sellingPrice || item.price || (item.qty ? item.amount / item.qty : 0)).toFixed(0);
+    const amount = Number(item.amount || (unitPrice * item.qty)).toFixed(0);
 
-    if (name.length <= 17) {
-      lines.push(threeColumn(name, qty, amount, 17, 4, 11));
-    } else {
-      lines.push(name.slice(0, LINE_WIDTH));
-      lines.push(threeColumn('  ', qty, amount, 17, 4, 11));
-    }
+    const itemLines = formatItemLines(name, unitPrice, qty, amount);
+    itemLines.forEach(l => lines.push(l));
   });
 
   // Parcel Fee (if present)
@@ -174,9 +200,11 @@ export function generateReceiptEscPosBytes(sale, settings = {}) {
 
   const bytes = [];
   const append = (arr) => { for (let i = 0; i < arr.length; i++) bytes.push(arr[i]); };
+  const encoder = new TextEncoder();
   const appendText = (text) => {
     const clean = cleanAscii(text);
-    for (let i = 0; i < clean.length; i++) bytes.push(clean.charCodeAt(i));
+    const encoded = encoder.encode(clean);
+    for (let i = 0; i < encoded.length; i++) bytes.push(encoded[i]);
   };
   const appendLine = (text) => {
     appendText(text);
@@ -198,9 +226,11 @@ export function generateReceiptEscPosBytes(sale, settings = {}) {
   append(COMMANDS.BOLD_OFF);
   appendLine('');
 
-  // Bill Line
+  // Bill Line (Bill No on left, Date & Time right-aligned)
   append(COMMANDS.ALIGN_LEFT);
-  appendLine(`${cleanBillNo(sale.billNo)} | ${formatReceiptDateTime(sale)}`);
+  const billNo = cleanBillNo(sale.billNo);
+  const dateTime = formatReceiptDateTime(sale);
+  appendLine(twoColumn(billNo, dateTime, LINE_WIDTH));
 
   // Divider
   appendLine(divider);
@@ -209,20 +239,17 @@ export function generateReceiptEscPosBytes(sale, settings = {}) {
   (sale.items || []).forEach(item => {
     const name = item.name || 'Item';
     const qty = String(item.qty || 1);
-    const amount = `Rs.${Number(item.amount || (item.sellingPrice * item.qty)).toFixed(0)}`;
+    const unitPrice = Number(item.sellingPrice || item.price || (item.qty ? item.amount / item.qty : 0)).toFixed(0);
+    const amount = Number(item.amount || (unitPrice * item.qty)).toFixed(0);
 
-    if (name.length <= 17) {
-      appendLine(threeColumn(name, qty, amount, 17, 4, 11));
-    } else {
-      appendLine(name.slice(0, LINE_WIDTH));
-      appendLine(threeColumn('  ', qty, amount, 17, 4, 11));
-    }
+    const itemLines = formatItemLines(name, unitPrice, qty, amount);
+    itemLines.forEach(l => appendLine(l));
   });
 
   // Parcel Fee (if present)
   if (sale.parcelFee && Number(sale.parcelFee) > 0) {
     const pCount = sale.parcelCount || Math.round(Number(sale.parcelFee) / 5);
-    appendLine(twoColumn(`Parcel Fee (${pCount})`, `Rs.${Number(sale.parcelFee).toFixed(0)}`));
+    appendLine(twoColumn(`Parcel Fee (${pCount})`, `₹${Number(sale.parcelFee).toFixed(0)}`));
   }
 
   // Divider before TOTAL
@@ -231,7 +258,7 @@ export function generateReceiptEscPosBytes(sale, settings = {}) {
   // TOTAL (Bigger & Bold)
   append(COMMANDS.BOLD_ON);
   append(COMMANDS.DOUBLE_HEIGHT);
-  appendLine(twoColumn('TOTAL', `Rs.${Number(sale.total).toFixed(0)}`));
+  appendLine(twoColumn('TOTAL', `₹${Number(sale.total).toFixed(0)}`));
   append(COMMANDS.NORMAL_SIZE);
   append(COMMANDS.BOLD_OFF);
 
