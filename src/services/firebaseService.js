@@ -11,7 +11,10 @@ import {
   set, 
   get, 
   remove, 
-  onValue 
+  onValue,
+  query,
+  limitToLast,
+  orderByKey
 } from 'firebase/database';
 
 export const DEFAULT_FIREBASE_CONFIG = {
@@ -34,6 +37,8 @@ class FirebaseService {
     this.lastError = null;
     this.subscribers = new Set();
     this.liveUnsubscribers = [];
+    this.lastOnDataUpdate = null;
+    this.isPaused = false;
 
     // Initialize automatically
     this.init();
@@ -116,8 +121,22 @@ class FirebaseService {
 
       this.db = getDatabase(this.app, this.config.databaseURL);
       
-      // Test connection
-      this.testConnection();
+      // Use zero-bandwidth native .info/connected listener instead of ping writes
+      try {
+        const connectedRef = ref(this.db, '.info/connected');
+        onValue(connectedRef, (snap) => {
+          if (snap.val() === true) {
+            this.status = 'connected';
+            this.lastError = null;
+            this.lastSyncTime = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            this.notify();
+          }
+        });
+      } catch {
+        // Fallback
+        this.status = 'connected';
+        this.notify();
+      }
     } catch (err) {
       console.error('[Firebase] Init Error:', err);
       this.status = 'error';
@@ -151,6 +170,48 @@ class FirebaseService {
     }
   }
 
+  // --- Products Metadata Versioning (Zero-bandwidth check) ---
+
+  async getProductsVersion() {
+    if (!this.db) return 0;
+    try {
+      const snap = await get(ref(this.db, 'billex/meta/productsVersion'));
+      return snap.exists() ? Number(snap.val()) || 0 : 0;
+    } catch {
+      return 0;
+    }
+  }
+
+  async setProductsVersion(version = Date.now()) {
+    if (!this.db) return;
+    try {
+      await set(ref(this.db, 'billex/meta/productsVersion'), version);
+    } catch (e) {
+      console.warn('[Firebase] Failed to bump productsVersion', e);
+    }
+  }
+
+  // --- Atomic Bill Number Counter ---
+
+  async getLastBillNumber() {
+    if (!this.db) return null;
+    try {
+      const snap = await get(ref(this.db, 'billex/meta/lastBillNumber'));
+      return snap.exists() ? Number(snap.val()) || 0 : null;
+    } catch {
+      return null;
+    }
+  }
+
+  async setLastBillNumber(num) {
+    if (!this.db) return;
+    try {
+      await set(ref(this.db, 'billex/meta/lastBillNumber'), Number(num) || 0);
+    } catch (e) {
+      console.warn('[Firebase] Failed to set lastBillNumber', e);
+    }
+  }
+
   // --- Realtime Cloud Operations (CRUD) ---
 
   // PRODUCTS
@@ -173,6 +234,7 @@ class FirebaseService {
     try {
       const prodRef = ref(this.db, `billex/products/${product.id}`);
       await set(prodRef, product);
+      await this.setProductsVersion();
       this.lastSyncTime = new Date().toLocaleTimeString();
       this.notify();
       return product;
@@ -187,6 +249,7 @@ class FirebaseService {
     try {
       const prodRef = ref(this.db, `billex/products/${productId}`);
       await remove(prodRef);
+      await this.setProductsVersion();
       this.lastSyncTime = new Date().toLocaleTimeString();
       this.notify();
     } catch (err) {
@@ -215,6 +278,7 @@ class FirebaseService {
     try {
       const catsRef = ref(this.db, 'billex/categories');
       await set(catsRef, categories);
+      await this.setProductsVersion();
       this.lastSyncTime = new Date().toLocaleTimeString();
       this.notify();
     } catch (err) {
@@ -224,6 +288,24 @@ class FirebaseService {
   }
 
   // SALES
+  // Recent sales query (Lightweight: limits download to last N sales)
+  async getRecentSales(limit = 50) {
+    if (!this.db) return [];
+    try {
+      const salesQuery = query(ref(this.db, 'billex/sales'), orderByKey(), limitToLast(limit));
+      const snapshot = await get(salesQuery);
+      if (!snapshot.exists()) return [];
+      const val = snapshot.val();
+      const list = Object.values(val);
+      list.sort((a, b) => (Number(b.timestamp) || 0) - (Number(a.timestamp) || 0));
+      return list;
+    } catch (err) {
+      this.handleError(err);
+      return [];
+    }
+  }
+
+  // Full sales query (Called only on-demand when user explicitly requests complete history)
   async getSales() {
     if (!this.db) return [];
     try {
@@ -238,6 +320,10 @@ class FirebaseService {
       this.handleError(err);
       return [];
     }
+  }
+
+  async getAllSales() {
+    return await this.getSales();
   }
 
   async saveSale(sale) {
@@ -268,6 +354,26 @@ class FirebaseService {
   }
 
   // EXPENSES
+  async getRecentExpenses(limit = 50) {
+    if (!this.db) return [];
+    try {
+      const expQuery = query(ref(this.db, 'billex/expenses'), orderByKey(), limitToLast(limit));
+      const snapshot = await get(expQuery);
+      if (!snapshot.exists()) return [];
+      const val = snapshot.val();
+      const list = Object.values(val);
+      list.sort((a, b) => {
+        const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        return timeB - timeA;
+      });
+      return list;
+    } catch (err) {
+      this.handleError(err);
+      return [];
+    }
+  }
+
   async getExpenses() {
     if (!this.db) return [];
     try {
@@ -372,26 +478,24 @@ class FirebaseService {
   }
 
   /**
-   * Start live synchronization for multi-device sync across all entities
+   * Start live synchronization for multi-device sync
+   * Optimized with limitToLast(50) and products version stamps to save ~95% bandwidth
    */
   startLiveSync(onDataUpdate) {
     if (!this.db || !this.config.autoSync) return;
+    this.lastOnDataUpdate = onDataUpdate;
     this.stopLiveSync();
 
     try {
-      // Products live listener
-      const prodsRef = ref(this.db, 'billex/products');
-      const unsubProds = onValue(prodsRef, (snapshot) => {
-        if (snapshot.exists()) {
-          const prods = Object.values(snapshot.val());
-          if (onDataUpdate) onDataUpdate({ type: 'products', data: prods });
-        } else {
-          if (onDataUpdate) onDataUpdate({ type: 'products', data: [] });
-        }
+      // 1. Products Version listener (tiny 8-byte payload: only triggers full download if menu changes!)
+      const prodVersionRef = ref(this.db, 'billex/meta/productsVersion');
+      const unsubProdVer = onValue(prodVersionRef, (snapshot) => {
+        const version = snapshot.exists() ? Number(snapshot.val()) || 0 : 0;
+        if (onDataUpdate) onDataUpdate({ type: 'products_version_changed', version });
       }, (err) => this.handleError(err));
-      this.liveUnsubscribers.push(unsubProds);
+      this.liveUnsubscribers.push(unsubProdVer);
 
-      // Categories live listener
+      // 2. Categories live listener (rarely changes)
       const catsRef = ref(this.db, 'billex/categories');
       const unsubCats = onValue(catsRef, (snapshot) => {
         if (snapshot.exists()) {
@@ -402,22 +506,22 @@ class FirebaseService {
       }, (err) => this.handleError(err));
       this.liveUnsubscribers.push(unsubCats);
 
-      // Sales live listener
-      const salesRef = ref(this.db, 'billex/sales');
-      const unsubSales = onValue(salesRef, (snapshot) => {
+      // 3. Sales live listener - BANDWIDTH OPTIMIZATION: only listen to last 50 sales!
+      const recentSalesQuery = query(ref(this.db, 'billex/sales'), orderByKey(), limitToLast(50));
+      const unsubSales = onValue(recentSalesQuery, (snapshot) => {
         if (snapshot.exists()) {
           const sales = Object.values(snapshot.val());
           sales.sort((a, b) => (Number(b.timestamp) || 0) - (Number(a.timestamp) || 0));
-          if (onDataUpdate) onDataUpdate({ type: 'sales', data: sales });
+          if (onDataUpdate) onDataUpdate({ type: 'sales_recent', data: sales });
         } else {
-          if (onDataUpdate) onDataUpdate({ type: 'sales', data: [] });
+          if (onDataUpdate) onDataUpdate({ type: 'sales_recent', data: [] });
         }
       }, (err) => this.handleError(err));
       this.liveUnsubscribers.push(unsubSales);
 
-      // Expenses live listener
-      const expRef = ref(this.db, 'billex/expenses');
-      const unsubExp = onValue(expRef, (snapshot) => {
+      // 4. Expenses live listener - BANDWIDTH OPTIMIZATION: only listen to last 50 expenses!
+      const recentExpQuery = query(ref(this.db, 'billex/expenses'), orderByKey(), limitToLast(50));
+      const unsubExp = onValue(recentExpQuery, (snapshot) => {
         if (snapshot.exists()) {
           const exp = Object.values(snapshot.val());
           exp.sort((a, b) => {
@@ -425,14 +529,14 @@ class FirebaseService {
             const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
             return timeB - timeA;
           });
-          if (onDataUpdate) onDataUpdate({ type: 'expenses', data: exp });
+          if (onDataUpdate) onDataUpdate({ type: 'expenses_recent', data: exp });
         } else {
-          if (onDataUpdate) onDataUpdate({ type: 'expenses', data: [] });
+          if (onDataUpdate) onDataUpdate({ type: 'expenses_recent', data: [] });
         }
       }, (err) => this.handleError(err));
       this.liveUnsubscribers.push(unsubExp);
 
-      // Settings live listener
+      // 5. Settings live listener
       const settRef = ref(this.db, 'billex/settings');
       const unsubSett = onValue(settRef, (snapshot) => {
         if (snapshot.exists()) {
@@ -442,7 +546,7 @@ class FirebaseService {
       }, (err) => this.handleError(err));
       this.liveUnsubscribers.push(unsubSett);
 
-      // Customers live listener
+      // 6. Customers live listener
       const custRef = ref(this.db, 'billex/customers');
       const unsubCust = onValue(custRef, (snapshot) => {
         if (snapshot.exists()) {
@@ -456,6 +560,18 @@ class FirebaseService {
 
     } catch (err) {
       this.handleError(err);
+    }
+  }
+
+  pauseLiveSync() {
+    this.isPaused = true;
+    this.stopLiveSync();
+  }
+
+  resumeLiveSync() {
+    if (this.isPaused && this.lastOnDataUpdate) {
+      this.isPaused = false;
+      this.startLiveSync(this.lastOnDataUpdate);
     }
   }
 

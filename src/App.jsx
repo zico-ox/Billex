@@ -134,33 +134,58 @@ export default function App() {
 
   const searchInputRef = useRef(null);
 
-  const loadAllData = async () => {
+  const loadAllData = async (forceCloud = false) => {
     try {
-      const [prods, cats, sett, allSales, allExpenses] = await Promise.all([
-        storageService.getProducts(),
-        storageService.getCategories(),
-        storageService.getSettings(),
-        storageService.getSales(),
-        storageService.getExpenses()
-      ]);
+      // 1. Instant local-first hydration (0 ms network, 0 bytes bandwidth)
+      const cachedProds = storageService.getCachedProducts();
+      const cachedCats = storageService.getCachedCategories();
+      const cachedSett = storageService.getCachedSettings();
+      const cachedSales = storageService.getCachedSales();
+      const cachedExpenses = storageService.getCachedExpenses();
 
-      setProducts(prods || []);
-      setCategories(cats || []);
-      setSettings(sett || {});
-      setSales(allSales || []);
-      setExpenses(allExpenses || []);
+      if (cachedProds && cachedProds.length > 0) setProducts(cachedProds);
+      if (cachedCats && cachedCats.length > 0) setCategories(cachedCats);
+      if (cachedSett) setSettings(cachedSett);
+      if (cachedSales && cachedSales.length > 0) setSales(cachedSales);
+      if (cachedExpenses && cachedExpenses.length > 0) setExpenses(cachedExpenses);
 
-      const metrics = await storageService.getDashboardMetrics(allSales, allExpenses);
+      const metrics = storageService.getDashboardMetrics(cachedSales, cachedExpenses);
       setDashboardMetrics(metrics);
 
-      const nextBill = await storageService.getNextBillNumber(allSales);
+      const nextBill = await storageService.getNextBillNumber(cachedSales);
       setBillNo(nextBill);
 
       const now = new Date();
       setBillDate(now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }));
       setBillTime(now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }));
+
+      // 2. Only fetch from cloud if local cache is completely empty or manual force refresh is requested
+      if (forceCloud || !cachedProds || cachedProds.length === 0) {
+        const prods = await storageService.getProducts(forceCloud);
+        if (prods && prods.length > 0) setProducts(prods);
+        const cats = await storageService.getCategories(forceCloud);
+        if (cats && cats.length > 0) setCategories(cats);
+      }
+      if (forceCloud || !cachedSett || !cachedSett.shopName) {
+        const sett = await storageService.getSettings(forceCloud);
+        if (sett) setSettings(sett);
+      }
+      if (forceCloud || !cachedSales || cachedSales.length === 0) {
+        const recent = await firebaseService.getRecentSales(50);
+        const merged = storageService.mergeSales(recent);
+        setSales(merged);
+        setDashboardMetrics(storageService.getDashboardMetrics(merged, cachedExpenses));
+        const nb = await storageService.getNextBillNumber(merged);
+        setBillNo(nb);
+      }
+      if (forceCloud || !cachedExpenses || cachedExpenses.length === 0) {
+        const recentExp = await firebaseService.getRecentExpenses(50);
+        const mergedExp = storageService.mergeExpenses(recentExp);
+        setExpenses(mergedExp);
+        setDashboardMetrics(storageService.getDashboardMetrics(cachedSales, mergedExp));
+      }
     } catch (err) {
-      console.error('[Billex] Error loading data from Firebase:', err);
+      console.error('[Billex] Error loading data:', err);
     }
   };
 
@@ -206,25 +231,47 @@ export default function App() {
       setFirebaseState(s);
     });
 
-    // Start live sync across all devices in real-time
-    firebaseService.startLiveSync(({ type, data }) => {
-      if (type === 'products') setProducts(data || []);
-      if (type === 'categories') setCategories(data || []);
-      if (type === 'sales') {
-        const newSales = data || [];
-        setSales(newSales);
-        storageService.getDashboardMetrics(newSales, null).then(setDashboardMetrics);
-        storageService.getNextBillNumber(newSales).then(setBillNo);
+    // Start bandwidth-optimized live sync across all devices in real-time
+    firebaseService.startLiveSync(async ({ type, data, version }) => {
+      if (type === 'products_version_changed') {
+        const res = await storageService.syncProductsIfVersionChanged(version);
+        if (res.updated) {
+          setProducts(res.products || []);
+          if (res.categories) setCategories(res.categories);
+        }
       }
-      if (type === 'expenses') {
-        const newExp = data || [];
-        setExpenses(newExp);
-        storageService.getDashboardMetrics(null, newExp).then(setDashboardMetrics);
+      if (type === 'products') {
+        setProducts(data || []);
+      }
+      if (type === 'categories') {
+        setCategories(data || []);
+      }
+      if (type === 'sales_recent') {
+        const mergedSales = storageService.mergeSales(data || []);
+        setSales(mergedSales);
+        setDashboardMetrics(storageService.getDashboardMetrics(mergedSales, null));
+        const nb = await storageService.getNextBillNumber(mergedSales);
+        setBillNo(nb);
+      }
+      if (type === 'expenses_recent') {
+        const mergedExp = storageService.mergeExpenses(data || []);
+        setExpenses(mergedExp);
+        setDashboardMetrics(storageService.getDashboardMetrics(null, mergedExp));
       }
       if (type === 'settings') {
         if (data) setSettings(data);
       }
     });
+
+    // Pause Firebase WebSocket polling when tablet/screen is locked or tab is hidden
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        firebaseService.pauseLiveSync();
+      } else {
+        firebaseService.resumeLiveSync();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     const handleKeyDown = (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
@@ -239,6 +286,7 @@ export default function App() {
       unsub();
       unsubFb();
       firebaseService.stopLiveSync();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('appinstalled', handleAppInstalled);
@@ -488,6 +536,10 @@ export default function App() {
     }
 
     setMobileCartOpen(false);
+
+    // Update state immediately
+    setSales(prev => [saved, ...prev.filter(s => s.id !== saved.id)]);
+    setDashboardMetrics(storageService.getDashboardMetrics([saved, ...sales], expenses));
 
     // 3. Immediately prepare next bill so screen is 100% active and unblocked for new orders!
     setCartItems([]);
@@ -1544,7 +1596,7 @@ export default function App() {
                     setSyncingCloud(true);
                     setSyncMessage(null);
                     try {
-                      await loadAllData();
+                      await loadAllData(true);
                       setSyncMessage('Successfully refreshed all catalog & sales directly from Firebase!');
                     } catch (err) {
                       setSyncMessage(`Sync failed: ${err.message || 'Permission denied'}`);
